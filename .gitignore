@@ -1,0 +1,4 @@
+edge-secrets.env
+.env
+.env.*
+!.env.example
