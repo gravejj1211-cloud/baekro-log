@@ -1805,6 +1805,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
     teacherPin: ""
   }));
   let teacherStudents = loadJson(STORAGE.students,[]);
+  let teacherHistoryCache = [];
   let currentUser = loadJson(STORAGE.auth,null);
   let recoveryMode = false;
   let teacherUnlocked = false;
@@ -2769,7 +2770,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
         <details class="obs-details">
           <summary>사진·위치·서식지 상세 보기</summary>
           <div class="obs-details-body">
-            ${o.photoId ? `<img class="obs-photo hidden" data-photo-id="${escapeHtml(o.photoId)}" alt="${escapeHtml(o.species)} 사진">` : ""}
+            ${(o.photoId || o.photoPath) ? `<img class="obs-photo hidden" ${o.photoId ? `data-photo-id="${escapeHtml(o.photoId)}"` : ""} ${o.photoPath ? `data-photo-path="${escapeHtml(o.photoPath)}"` : ""} alt="${escapeHtml(o.species)} 사진">` : ""}
             <div class="obs-habitat">
               ${o.tags?.length ? `<div class="tiny">${o.tags.map(escapeHtml).join(" · ")}</div>` : ""}
               ${o.habitat ? escapeHtml(o.habitat) : ""}
@@ -2859,11 +2860,18 @@ svg.leaflet-image-layer.leaflet-interactive path {
   }
 
   async function hydrateObservationPhotos(){
-    const images = document.querySelectorAll(".obs-photo[data-photo-id]");
+    const images = document.querySelectorAll(".obs-photo[data-photo-id], .obs-photo[data-photo-path]");
     for(const img of images){
-      const id = img.dataset.photoId;
       try{
-        const url = await getPhotoUrl(id);
+        let url = "";
+        if(img.dataset.photoPath){
+          const {data,error} = await supabaseClient.storage
+            .from("observation-photos")
+            .createSignedUrl(img.dataset.photoPath,3600);
+          if(!error) url = data?.signedUrl || "";
+        }else{
+          url = await getPhotoUrl(img.dataset.photoId);
+        }
         if(url){
           img.onload = ()=>img.classList.remove("hidden");
           img.onerror = ()=>img.remove();
@@ -3538,6 +3546,75 @@ svg.leaflet-image-layer.leaflet-interactive path {
     $("finishModal").classList.add("hidden");
   }
 
+  async function syncSurveyToSupabase(survey){
+    if(!supabaseClient || !currentUser?.authId){
+      throw new Error("Supabase 로그인 세션을 확인할 수 없습니다.");
+    }
+    const userId = currentUser.authId;
+    const start = survey.startPosition || {};
+    const end = survey.endPosition || {};
+    const surveyRow = {
+      id:survey.id,
+      user_id:userId,
+      participant_name:survey.participant || currentUser.name || "",
+      class_name:currentUser.className || "",
+      zone_name:survey.zone?.name || "",
+      start_time:survey.startTime || null,
+      end_time:survey.endTime || null,
+      distance_m:Number(survey.distance || 0),
+      start_lat:start.lat ?? null,
+      start_lon:start.lon ?? null,
+      end_lat:end.lat ?? null,
+      end_lon:end.lon ?? null,
+      route:survey.route || [],
+      reflection:survey.reflection || "",
+      status:"submitted",
+      updated_at:new Date().toISOString()
+    };
+    const {error:surveyError} = await supabaseClient
+      .from("surveys")
+      .upsert(surveyRow,{onConflict:"id"});
+    if(surveyError) throw surveyError;
+
+    const observationRows = [];
+    for(const observation of (survey.observations || [])){
+      let photoPath = null;
+      if(observation.photoId){
+        const photoRecord = await getPhotoRecord(observation.photoId);
+        if(photoRecord?.blob){
+          photoPath = `${userId}/${survey.id}/${observation.id}.jpg`;
+          const {error:photoError} = await supabaseClient.storage
+            .from("observation-photos")
+            .upload(photoPath,photoRecord.blob,{
+              upsert:true,
+              contentType:photoRecord.type || photoRecord.blob.type || "image/jpeg"
+            });
+          if(photoError) throw photoError;
+        }
+      }
+      observationRows.push({
+        id:observation.id,
+        survey_id:survey.id,
+        species:observation.species || "",
+        count:Number(observation.count || 1),
+        observed_at:observation.time || null,
+        latitude:observation.lat ?? null,
+        longitude:observation.lon ?? null,
+        accuracy_m:observation.accuracy ?? null,
+        location_method:observation.locationMethod || "gps",
+        note:[observation.habitat, ...(observation.tags || []), observation.locationNote]
+          .filter(Boolean).join(" · "),
+        photo_path:photoPath
+      });
+    }
+    if(observationRows.length){
+      const {error:observationError} = await supabaseClient
+        .from("observations")
+        .upsert(observationRows,{onConflict:"id"});
+      if(observationError) throw observationError;
+    }
+  }
+
   function openFinishModal(){
     if(!currentSurvey || !isDraftSurvey(currentSurvey)) return;
     const totalIndividuals = currentSurvey.observations.reduce((s,o)=>s+Number(o.count||0),0);
@@ -3561,7 +3638,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
     setTimeout(()=>$("surveyReflection").focus(),120);
   }
 
-  function finishSurvey(){
+  async function finishSurvey(){
     if(!currentSurvey || !isDraftSurvey(currentSurvey)) return;
 
     const reflection = $("surveyReflection").value.trim();
@@ -3594,6 +3671,22 @@ svg.leaflet-image-layer.leaflet-interactive path {
     currentSurvey.submittedAt = now;
     currentSurvey.submissionStatus = "submitted";
     currentSurvey.status = "submitted";
+
+    const confirmBtn = $("confirmFinishBtn");
+    confirmBtn.disabled = true;
+    confirmBtn.textContent = "Supabase 저장 중…";
+    try{
+      await syncSurveyToSupabase(currentSurvey);
+    }catch(error){
+      currentSurvey.submittedAt = null;
+      currentSurvey.submissionStatus = "draft";
+      currentSurvey.status = "진행중";
+      alert(`Supabase 저장에 실패했습니다. 조사 기록은 이 기기에 남아 있습니다.\\n\\n${error.message || error}`);
+      return;
+    }finally{
+      confirmBtn.disabled = false;
+      confirmBtn.textContent = "최종 제출";
+    }
 
     const history = loadJson(STORAGE.history,[]);
     const existingIndex = history.findIndex(s=>s.id===currentSurvey.id);
@@ -3641,8 +3734,58 @@ svg.leaflet-image-layer.leaflet-interactive path {
     }).join("");
   }
 
-  function renderTeacherDashboard(){
-    const history = loadJson(STORAGE.history,[]);
+  function normalizeRemoteSurvey(row){
+    return {
+      id:row.id,
+      participant:row.participant_name || "",
+      date:row.start_time ? formatDate(new Date(row.start_time)) : "",
+      startTime:row.start_time,
+      endTime:row.end_time,
+      startPosition:row.start_lat != null && row.start_lon != null
+        ? {lat:Number(row.start_lat),lon:Number(row.start_lon)} : null,
+      endPosition:row.end_lat != null && row.end_lon != null
+        ? {lat:Number(row.end_lat),lon:Number(row.end_lon)} : null,
+      zone:{name:row.zone_name || "미지정"},
+      route:Array.isArray(row.route) ? row.route : [],
+      distance:Number(row.distance_m || 0),
+      reflection:row.reflection || "",
+      status:row.status === "submitted" ? "submitted" : "진행중",
+      submissionStatus:row.status === "submitted" ? "submitted" : "draft",
+      submittedAt:row.status === "submitted" ? row.updated_at : null,
+      observations:(row.observations || []).map(observation=>({
+        id:observation.id,
+        species:observation.species || "",
+        count:Number(observation.count || 1),
+        time:observation.observed_at,
+        lat:Number(observation.latitude),
+        lon:Number(observation.longitude),
+        accuracy:Number(observation.accuracy_m || 0),
+        locationMethod:observation.location_method,
+        note:observation.note || "",
+        photoPath:observation.photo_path || null
+      }))
+    };
+  }
+
+  async function loadTeacherHistory(){
+    const localHistory = loadJson(STORAGE.history,[]);
+    if(!supabaseClient || !currentUser || !["owner_teacher","collaborating_teacher"].includes(currentUser.role)){
+      return localHistory;
+    }
+    const {data,error} = await supabaseClient
+      .from("surveys")
+      .select("*, observations(*)")
+      .order("created_at",{ascending:false});
+    if(error){
+      console.warn("Supabase 조사 기록 조회 실패",error);
+      return localHistory;
+    }
+    return (data || []).map(normalizeRemoteSurvey);
+  }
+
+  async function renderTeacherDashboard(){
+    const history = await loadTeacherHistory();
+    teacherHistoryCache = history;
     renderTeacherFilterOptions(history);
     const filteredRecords = getTeacherFilteredHistory(history);
     const filteredHistory = filteredRecords.map(item=>item.survey);
@@ -3679,7 +3822,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
             ${s.submittedAt ? `<br>제출 시각 · ${formatTime(s.submittedAt,true)}` : ""}
           </div>
           <div class="btn-row" style="margin-top:10px">
-            <button class="btn ghost" onclick="window.__openHistory(${index})">조사 기록 보기</button>
+            <button class="btn ghost" onclick="window.__openTeacherHistory('${escapeHtml(s.id)}')">조사 기록 보기</button>
           </div>
         </div>
       `;
@@ -4009,6 +4152,17 @@ svg.leaflet-image-layer.leaflet-interactive path {
   window.__openHistory = (idx)=>{
     const history = loadJson(STORAGE.history,[]);
     currentSurvey = history[idx];
+    resetMapLayers();
+    showView("survey");
+    renderSurvey();
+    $("addObservationBtn").classList.add("hidden");
+    $("finishSurveyBtn").classList.add("hidden");
+  };
+
+  window.__openTeacherHistory = (surveyId)=>{
+    const survey = teacherHistoryCache.find(item=>item.id === surveyId);
+    if(!survey) return;
+    currentSurvey = survey;
     resetMapLayers();
     showView("survey");
     renderSurvey();
