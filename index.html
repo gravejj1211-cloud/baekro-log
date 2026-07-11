@@ -1,0 +1,1819 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#176b4d" />
+  <title>백로류 모니터링 조사일지 v4</title>
+  <link rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin="" />
+  <style>
+    :root{
+      --bg:#f4f7f5;
+      --card:#ffffff;
+      --text:#17211c;
+      --muted:#64746b;
+      --line:#d7e0da;
+      --primary:#176b4d;
+      --primary-2:#0e5139;
+      --soft:#e8f3ed;
+      --good:#147a45;
+      --warn:#a56a00;
+      --bad:#b42318;
+      --shadow:0 8px 24px rgba(20,45,32,.08);
+      --radius:18px;
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",sans-serif}
+    body{min-height:100vh}
+    button,input,select,textarea{font:inherit}
+    button{cursor:pointer}
+    .app{max-width:760px;margin:0 auto;min-height:100vh;padding-bottom:96px}
+    .topbar{
+      position:sticky;top:0;z-index:20;
+      display:flex;align-items:center;justify-content:space-between;
+      padding:14px 16px;background:rgba(255,255,255,.94);
+      backdrop-filter:blur(10px);border-bottom:1px solid var(--line)
+    }
+    .title-wrap{display:flex;gap:10px;align-items:center}
+    .logo{width:38px;height:38px;border-radius:12px;background:var(--primary);display:grid;place-items:center;color:white;font-weight:800}
+    h1{font-size:18px;margin:0;line-height:1.25}
+    .sub{font-size:12px;color:var(--muted);margin-top:2px}
+    .icon-btn{
+      width:40px;height:40px;border:1px solid var(--line);border-radius:12px;
+      background:white;color:var(--text);display:grid;place-items:center;font-size:18px
+    }
+    main{padding:16px}
+    .banner{
+      border:1px solid #f1c6c1;background:#fff2f0;color:#7a271a;
+      border-radius:14px;padding:12px 14px;margin-bottom:14px;font-size:13px;line-height:1.45
+    }
+    .banner.good{border-color:#b7dfc5;background:#eef9f2;color:#14532d}
+    .card{
+      background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+      box-shadow:var(--shadow);padding:16px;margin-bottom:14px
+    }
+    .card h2{font-size:16px;margin:0 0 14px;display:flex;align-items:center;justify-content:space-between}
+    .status-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .status-item{background:#f8faf9;border:1px solid var(--line);border-radius:14px;padding:12px}
+    .status-item .label{font-size:12px;color:var(--muted);margin-bottom:5px}
+    .status-item .value{font-size:15px;font-weight:700;word-break:break-word}
+    .full{grid-column:1/-1}
+    .gps-pill{display:inline-flex;align-items:center;gap:6px;padding:5px 9px;border-radius:999px;font-size:12px;font-weight:700}
+    .gps-good{background:#e8f7ee;color:var(--good)}
+    .gps-warn{background:#fff5df;color:var(--warn)}
+    .gps-bad{background:#fff0ee;color:var(--bad)}
+    .form-group{margin-bottom:14px}
+    label{display:block;font-size:13px;font-weight:700;margin-bottom:7px}
+    input,select,textarea{
+      width:100%;border:1px solid var(--line);border-radius:12px;background:white;color:var(--text);
+      padding:12px 13px;outline:none
+    }
+    input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(23,107,77,.12)}
+    textarea{min-height:92px;resize:vertical}
+    .btn{
+      border:0;border-radius:14px;padding:13px 16px;font-weight:800;
+      display:inline-flex;align-items:center;justify-content:center;gap:8px
+    }
+    .btn.primary{background:var(--primary);color:white}
+    .btn.primary:hover{background:var(--primary-2)}
+    .btn.secondary{background:var(--soft);color:var(--primary-2)}
+    .btn.ghost{background:white;border:1px solid var(--line);color:var(--text)}
+    .btn.danger{background:#fff0ee;color:var(--bad);border:1px solid #f2c4bf}
+    .btn.block{width:100%}
+    .btn-row{display:flex;gap:9px;flex-wrap:wrap}
+    .btn-row .btn{flex:1;min-width:130px}
+    .hero-action{padding:18px;font-size:17px}
+    .muted{color:var(--muted);font-size:13px;line-height:1.45}
+    .hidden{display:none!important}
+    .survey-head{
+      background:linear-gradient(135deg,#176b4d,#25875f);color:white;border:0
+    }
+    .survey-head .sub,.survey-head .muted{color:rgba(255,255,255,.8)}
+    .big-number{font-size:28px;font-weight:900}
+    .metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}
+    .metric{background:rgba(255,255,255,.12);border-radius:14px;padding:12px;text-align:center}
+    .metric .n{font-size:20px;font-weight:900}
+    .metric .t{font-size:11px;margin-top:3px;color:rgba(255,255,255,.78)}
+    .route-wrap{position:relative}
+    canvas{width:100%;height:220px;background:#f8faf9;border:1px solid var(--line);border-radius:14px}
+    .route-legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:8px;font-size:12px;color:var(--muted)}
+    .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px}
+    .obs-list{display:flex;flex-direction:column;gap:10px}
+    .obs{
+      border:1px solid var(--line);border-radius:15px;padding:13px;background:#fbfcfb
+    }
+    .obs-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+    .obs-name{font-weight:900;font-size:16px}
+    .obs-count{font-weight:900;color:var(--primary)}
+    .obs-meta{font-size:12px;color:var(--muted);margin-top:6px;line-height:1.5}
+    .obs-habitat{margin-top:8px;font-size:13px;line-height:1.5}
+    .chips{display:flex;flex-wrap:wrap;gap:7px}
+    .chip{
+      border:1px solid var(--line);background:white;border-radius:999px;padding:8px 11px;font-size:13px
+    }
+    .chip.active{background:var(--soft);border-color:#8fc4aa;color:var(--primary-2);font-weight:800}
+    .counter{display:grid;grid-template-columns:58px 1fr 58px;gap:8px;align-items:center}
+    .counter button{height:48px;border:1px solid var(--line);background:white;border-radius:12px;font-size:24px}
+    .counter input{text-align:center;font-size:20px;font-weight:900;height:48px}
+    .modal{
+      position:fixed;inset:0;background:rgba(7,20,13,.48);z-index:50;
+      display:flex;align-items:flex-end;justify-content:center;padding:0
+    }
+    .sheet{
+      width:min(760px,100%);max-height:92vh;overflow:auto;background:white;
+      border-radius:22px 22px 0 0;padding:18px 16px 26px;box-shadow:0 -16px 40px rgba(0,0,0,.18)
+    }
+    .sheet-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+    .sheet-head h3{margin:0;font-size:18px}
+    .progress{height:10px;border-radius:999px;background:#edf1ee;overflow:hidden}
+    .progress > div{height:100%;width:0;background:var(--primary);transition:width .2s}
+    .measure-box{border:1px solid var(--line);border-radius:15px;padding:14px;background:#f9fbfa;margin-bottom:14px}
+    .measure-value{font-size:28px;font-weight:900;text-align:center;margin:10px 0}
+    .zone-editor{display:flex;flex-direction:column;gap:9px}
+    .zone-edit-row{
+      display:grid;grid-template-columns:1fr 42px 42px 42px;gap:7px;align-items:center
+    }
+    .zone-edit-row input{padding:11px 12px}
+    .mini-btn{
+      height:42px;border:1px solid var(--line);background:white;border-radius:11px;
+      font-size:16px;display:grid;place-items:center
+    }
+    .mini-btn.danger{color:var(--bad);background:#fff5f3;border-color:#f1c8c2}
+    .teacher-lock{
+      border:1px solid var(--line);border-radius:15px;padding:14px;background:#f9fbfa
+    }
+    .teacher-note{
+      border:1px solid #f0d6a4;background:#fff8e8;color:#6f4b00;
+      padding:11px 12px;border-radius:12px;font-size:12px;line-height:1.5
+    }
+    .history-item{border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:9px}
+    .history-title{font-weight:900}
+    .history-meta{font-size:12px;color:var(--muted);margin-top:4px;line-height:1.45}
+    .footer-nav{
+      position:fixed;left:0;right:0;bottom:0;z-index:30;background:white;border-top:1px solid var(--line);
+      padding:9px 12px calc(9px + env(safe-area-inset-bottom));
+      display:flex;justify-content:center
+    }
+    .footer-inner{width:min(760px,100%);display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+    .nav-btn{border:0;background:transparent;padding:8px;border-radius:12px;color:var(--muted);font-weight:700;font-size:12px}
+    .nav-btn.active{background:var(--soft);color:var(--primary-2)}
+    .nav-btn span{display:block;font-size:18px;margin-bottom:3px}
+    .tiny{font-size:11px;color:var(--muted)}
+    .divider{height:1px;background:var(--line);margin:15px 0}
+    .nowrap{white-space:nowrap}
+
+    #routeMap{
+      width:100%;height:320px;border:1px solid var(--line);border-radius:14px;
+      overflow:hidden;background:#eef2ef;z-index:1
+    }
+    .map-message{
+      min-height:320px;display:grid;place-items:center;text-align:center;padding:20px;
+      border:1px solid var(--line);border-radius:14px;background:#f8faf9;color:var(--muted)
+    }
+    .leaflet-container{font-family:inherit}
+    .leaflet-control-attribution{font-size:9px!important}
+    .leaflet-popup-content{margin:10px 12px;min-width:190px}
+    .map-popup-title{font-weight:900;font-size:15px;margin-bottom:5px}
+    .map-popup-meta{font-size:12px;line-height:1.45;color:#56645c}
+    .map-popup-photo{
+      display:block;width:100%;max-width:240px;max-height:180px;object-fit:cover;
+      border-radius:10px;margin-bottom:8px;background:#eef1ef
+    }
+    .photo-box{
+      border:1px dashed #9db6a7;border-radius:15px;padding:13px;background:#f7fbf8
+    }
+    .photo-box input[type="file"]{padding:9px;background:white}
+    .photo-preview-wrap{margin-top:10px;position:relative}
+    .photo-preview{
+      display:block;width:100%;max-height:280px;object-fit:contain;
+      border-radius:13px;background:#e9eeeb
+    }
+    .photo-remove{
+      position:absolute;right:8px;top:8px;width:36px;height:36px;border:0;border-radius:50%;
+      background:rgba(20,25,22,.72);color:white;font-size:17px
+    }
+    .obs-photo{
+      width:100%;max-height:250px;object-fit:cover;border-radius:12px;margin-bottom:10px;
+      background:#edf1ee
+    }
+    .photo-status{margin-top:7px;min-height:18px}
+    .print-only{display:none}
+    @media (max-width:520px){
+      .status-grid{grid-template-columns:1fr 1fr}
+      .metrics{grid-template-columns:repeat(3,1fr)}
+      .metric{padding:10px 5px}
+      .metric .n{font-size:18px}
+      .zone-edit-row{grid-template-columns:1fr 38px 38px 38px}
+      .mini-btn{height:40px}
+      #routeMap,.map-message{height:300px;min-height:300px}
+    }
+    @media print{
+      body{background:white}
+      .topbar,.footer-nav,.no-print,.banner{display:none!important}
+      .app{max-width:none;padding:0}
+      main{padding:0}
+      .card{box-shadow:none;border:1px solid #888;border-radius:0;margin:0 0 10px}
+      .survey-head{background:white!important;color:black!important}
+      .survey-head .sub,.survey-head .muted{color:#333!important}
+      .metric{background:white!important;border:1px solid #aaa}
+      .metric .t{color:#333!important}
+      .print-only{display:block}
+      canvas{display:none}
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="title-wrap">
+      <div class="logo">鳥</div>
+      <div>
+        <h1>백로류 모니터링 조사일지</h1>
+        <div class="sub">모바일 현장 조사 기록 · 지도·사진 v4</div>
+      </div>
+    </div>
+    <button class="icon-btn" id="settingsBtn" aria-label="설정">⚙️</button>
+  </header>
+
+  <main>
+    <div id="secureBanner" class="banner hidden"></div>
+
+    <section id="homeView">
+      <div class="card">
+        <h2>조사 준비</h2>
+        <div class="form-group">
+          <label for="participant">참여자</label>
+          <input id="participant" type="text" placeholder="이름 또는 모둠명을 입력하세요" autocomplete="name" />
+        </div>
+        <div class="form-group">
+          <label for="surveyZoneSelect">조사 구간</label>
+          <select id="surveyZoneSelect">
+            <option value="">조사 구간을 선택하세요</option>
+          </select>
+          <div class="tiny" style="margin-top:6px">구간 목록은 교사용 설정에서 수정합니다.</div>
+        </div>
+        <div class="status-grid">
+          <div class="status-item">
+            <div class="label">일자</div>
+            <div class="value" id="todayValue">-</div>
+          </div>
+          <div class="status-item">
+            <div class="label">현재 시간</div>
+            <div class="value" id="clockValue">-</div>
+          </div>
+          <div class="status-item full">
+            <div class="label">GPS 상태</div>
+            <div class="value" id="homeGpsValue">측정 전</div>
+          </div>
+          <div class="status-item full">
+            <div class="label">날씨</div>
+            <div class="value" id="homeWeatherValue">조사 시작 시 자동 입력</div>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <button class="btn primary block hero-action" id="startSurveyBtn">📍 조사 시작</button>
+        <p class="muted">GPS는 ±5m 이내를 우선 확보하고, 최대 ±10m까지 기록을 허용합니다. GPS 좌표는 생물의 실제 위치가 아니라 조사자가 기록한 위치입니다.</p>
+      </div>
+
+      <div class="card">
+        <h2>조사 구간 목록</h2>
+        <p class="muted">학생은 교사가 등록한 목록에서 조사 구간만 선택합니다. GPS는 조사 시작 좌표와 종 발견 위치 기록에 사용됩니다.</p>
+        <div id="zoneSummary" class="status-item">
+          <div class="label">교사가 등록한 조사 구간</div>
+          <div class="value">0개</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="surveyView" class="hidden">
+      <div class="card survey-head">
+        <div class="sub" id="surveyDateText">-</div>
+        <div class="big-number" id="surveyZoneText">조사 구간 확인 중</div>
+        <div class="sub" id="surveyWeatherText">날씨 확인 중</div>
+        <div class="metrics">
+          <div class="metric">
+            <div class="n" id="elapsedText">00:00</div>
+            <div class="t">조사 시간</div>
+          </div>
+          <div class="metric">
+            <div class="n" id="speciesCountText">0</div>
+            <div class="t">관찰 종</div>
+          </div>
+          <div class="metric">
+            <div class="n" id="individualCountText">0</div>
+            <div class="t">총 개체수</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card no-print">
+        <h2>현재 GPS <span id="liveGpsPill" class="gps-pill gps-bad">대기 중</span></h2>
+        <div class="status-grid">
+          <div class="status-item">
+            <div class="label">위도</div>
+            <div class="value" id="liveLat">-</div>
+          </div>
+          <div class="status-item">
+            <div class="label">경도</div>
+            <div class="value" id="liveLon">-</div>
+          </div>
+          <div class="status-item">
+            <div class="label">정확도</div>
+            <div class="value" id="liveAcc">-</div>
+          </div>
+          <div class="status-item">
+            <div class="label">이동 거리</div>
+            <div class="value" id="distanceText">0m</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card route-wrap">
+        <h2>조사 이동 경로</h2>
+        <div id="routeMap" aria-label="조사 이동 경로 지도"></div>
+        <div id="mapFallback" class="map-message hidden">
+          지도를 불러오지 못했습니다.<br>인터넷 연결을 확인해 주세요.
+        </div>
+        <div class="route-legend">
+          <span><span class="dot" style="background:#176b4d"></span>이동 경로</span>
+          <span><span class="dot" style="background:#2474d2"></span>현재 위치</span>
+          <span><span class="dot" style="background:#d94841"></span>종 발견 위치·사진</span>
+        </div>
+        <div class="btn-row no-print" style="margin-top:10px">
+          <button class="btn ghost" id="centerCurrentBtn">현재 위치</button>
+          <button class="btn ghost" id="fitRouteBtn">전체 경로</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>관찰 기록 <span class="tiny" id="obsCountLabel">0건</span></h2>
+        <div id="obsList" class="obs-list">
+          <div class="muted">아직 기록된 종이 없습니다.</div>
+        </div>
+      </div>
+
+      <div class="card no-print">
+        <div class="btn-row">
+          <button class="btn primary" id="addObservationBtn">＋ 종 기록</button>
+          <button class="btn danger" id="finishSurveyBtn">조사 종료</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="historyView" class="hidden">
+      <div class="card">
+        <h2>저장된 조사 기록</h2>
+        <div id="historyList"><div class="muted">저장된 기록이 없습니다.</div></div>
+      </div>
+      <div class="card no-print">
+        <div class="btn-row">
+          <button class="btn secondary" id="exportCsvBtn">CSV 내보내기</button>
+          <button class="btn ghost" id="exportJsonBtn">JSON 백업</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <nav class="footer-nav no-print">
+    <div class="footer-inner">
+      <button class="nav-btn active" data-view="home"><span>🏠</span>홈</button>
+      <button class="nav-btn" data-view="survey"><span>📍</span>조사</button>
+      <button class="nav-btn" data-view="history"><span>📚</span>기록</button>
+    </div>
+  </nav>
+</div>
+
+<!-- 종 기록 모달 -->
+<div id="observationModal" class="modal hidden">
+  <div class="sheet">
+    <div class="sheet-head">
+      <h3>종 관찰 기록</h3>
+      <button class="icon-btn" id="closeObsModal">✕</button>
+    </div>
+
+    <div class="measure-box">
+      <div class="tiny">GPS 정밀 측정</div>
+      <div class="measure-value" id="measureAccuracy">측정 전</div>
+      <div class="progress"><div id="measureProgress"></div></div>
+      <p class="muted" id="measureMessage">종을 발견한 위치에서 측정을 시작하세요.</p>
+      <button class="btn secondary block" id="measurePositionBtn">GPS 측정 시작</button>
+    </div>
+
+    <div class="form-group">
+      <label>백로 사진</label>
+      <div class="photo-box">
+        <input id="photoInput" type="file" accept="image/*" capture="environment" />
+        <div id="photoStatus" class="tiny photo-status">사진 촬영 또는 갤러리에서 선택할 수 있습니다.</div>
+        <div id="photoPreviewWrap" class="photo-preview-wrap hidden">
+          <img id="photoPreview" class="photo-preview" alt="선택한 백로 사진 미리보기" />
+          <button type="button" id="removePhotoBtn" class="photo-remove" aria-label="사진 제거">✕</button>
+        </div>
+      </div>
+      <p class="muted">사진은 긴 변 1,600px 이하로 자동 압축해 이 기기에 저장합니다. 사진과 GPS 좌표는 같은 관찰 기록으로 연결됩니다.</p>
+    </div>
+
+    <div class="form-group">
+      <label for="speciesName">종명</label>
+      <input id="speciesName" list="speciesList" placeholder="예: 중대백로" />
+      <datalist id="speciesList">
+        <option value="왜가리"></option>
+        <option value="중대백로"></option>
+        <option value="중백로"></option>
+        <option value="쇠백로"></option>
+        <option value="황로"></option>
+        <option value="해오라기"></option>
+        <option value="검은댕기해오라기"></option>
+        <option value="흰날개해오라기"></option>
+        <option value="알락해오라기"></option>
+        <option value="덤불해오라기"></option>
+        <option value="붉은왜가리"></option>
+        <option value="미동정 백로류"></option>
+      </datalist>
+    </div>
+
+    <div class="form-group">
+      <label>개체수</label>
+      <div class="counter">
+        <button type="button" id="countMinus">−</button>
+        <input id="individualCount" type="number" min="1" step="1" value="1" inputmode="numeric" />
+        <button type="button" id="countPlus">＋</button>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>출현지역·서식 특성</label>
+      <div class="chips" id="habitatChips">
+        <button type="button" class="chip">하천</button>
+        <button type="button" class="chip">습지</button>
+        <button type="button" class="chip">논</button>
+        <button type="button" class="chip">농수로</button>
+        <button type="button" class="chip">저수지</button>
+        <button type="button" class="chip">모래톱</button>
+        <button type="button" class="chip">자갈밭</button>
+        <button type="button" class="chip">수변 식생</button>
+        <button type="button" class="chip">나무 위</button>
+        <button type="button" class="chip">얕은 물</button>
+        <button type="button" class="chip">먹이활동</button>
+        <button type="button" class="chip">휴식</button>
+        <button type="button" class="chip">비행</button>
+        <button type="button" class="chip">번식</button>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="habitatText">상세 기록</label>
+      <textarea id="habitatText" placeholder="예: 물가의 얕은 곳에서 먹이활동 중"></textarea>
+    </div>
+
+    <button class="btn primary block" id="saveObservationBtn">기록 저장</button>
+  </div>
+</div>
+
+<!-- 교사용 설정 모달 -->
+<div id="settingsModal" class="modal hidden">
+  <div class="sheet">
+    <div class="sheet-head">
+      <h3>교사용 조사 구간 설정</h3>
+      <button class="icon-btn" id="closeSettingsModal">✕</button>
+    </div>
+
+    <div id="teacherAuthPanel" class="teacher-lock">
+      <div id="teacherAuthTitle" style="font-weight:900;margin-bottom:8px">교사 PIN 확인</div>
+      <p id="teacherAuthGuide" class="muted">교사용 설정을 열려면 PIN을 입력하세요.</p>
+      <div class="form-group">
+        <label for="teacherPinInput">교사 PIN</label>
+        <input id="teacherPinInput" type="password" inputmode="numeric" maxlength="8"
+          placeholder="4~8자리 숫자" autocomplete="off" />
+      </div>
+      <div id="teacherPinConfirmWrap" class="form-group hidden">
+        <label for="teacherPinConfirm">PIN 확인</label>
+        <input id="teacherPinConfirm" type="password" inputmode="numeric" maxlength="8"
+          placeholder="PIN을 한 번 더 입력하세요" autocomplete="off" />
+      </div>
+      <button class="btn primary block" id="teacherAuthBtn">확인</button>
+    </div>
+
+    <div id="zoneManagerPanel" class="hidden">
+      <div class="teacher-note">
+        이 단일 HTML 단계의 수정 내용은 <b>현재 브라우저에만 저장</b>됩니다.
+        여러 학생의 휴대폰에 동일하게 반영하려면 추후 Supabase의 공통 설정 테이블과 연결해야 합니다.
+      </div>
+
+      <div class="form-group" style="margin-top:14px">
+        <label>조사 구간 목록</label>
+        <p class="muted">구간명을 수정하거나, 순서를 바꾸고, 필요 없는 구간을 삭제할 수 있습니다.</p>
+        <div id="zoneEditor" class="zone-editor"></div>
+      </div>
+
+      <button class="btn secondary block" id="addZoneBtn">＋ 조사 구간 추가</button>
+
+      <div class="divider"></div>
+
+      <div class="form-group">
+        <label for="newTeacherPin">교사 PIN 변경</label>
+        <input id="newTeacherPin" type="password" inputmode="numeric" maxlength="8"
+          placeholder="변경하지 않으면 비워 두세요" autocomplete="off" />
+      </div>
+
+      <button class="btn primary block" id="saveSettingsBtn">구간 목록 저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- 조사 종료 모달 -->
+<div id="finishModal" class="modal hidden">
+  <div class="sheet">
+    <div class="sheet-head">
+      <h3>조사 종료</h3>
+      <button class="icon-btn" id="closeFinishModal">✕</button>
+    </div>
+    <div id="finishSummary" class="card" style="box-shadow:none"></div>
+    <div class="btn-row">
+      <button class="btn ghost" id="printCurrentBtn">인쇄</button>
+      <button class="btn primary" id="confirmFinishBtn">최종 저장</button>
+    </div>
+  </div>
+</div>
+
+<script
+  src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+  integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+  crossorigin=""></script>
+<script>
+(() => {
+  "use strict";
+
+  const $ = (id) => document.getElementById(id);
+  const STORAGE = {
+    settings: "egretSurveySettings_v1",
+    draft: "egretSurveyDraft_v1",
+    history: "egretSurveyHistory_v1",
+    participant: "egretSurveyParticipant_v1"
+  };
+
+  const defaultZones = [
+    "원주천 상류",
+    "원주천 중류",
+    "원주천 하류",
+    "섬강 1지점",
+    "섬강 2지점",
+    "섬강 3지점"
+  ];
+
+  let settings = normalizeSettings(loadJson(STORAGE.settings, {
+    zones: defaultZones,
+    teacherPin: ""
+  }));
+  let currentSurvey = loadJson(STORAGE.draft, null);
+  let routeWatchId = null;
+  let timerId = null;
+  let lastLivePosition = null;
+  let measuredObservationPosition = null;
+  let selectedHabitatTags = new Set();
+  let measurementWatcher = null;
+  let routeMap = null;
+  let routePolyline = null;
+  let currentLocationMarker = null;
+  let startLocationMarker = null;
+  let observationLayer = null;
+  let mapHasFit = false;
+  let pendingPhotoBlob = null;
+  let pendingPhotoObjectUrl = null;
+  const photoUrlCache = new Map();
+  const PHOTO_DB_NAME = "egretSurveyMediaDB_v1";
+  const PHOTO_STORE = "photos";
+
+
+  function openPhotoDb(){
+    return new Promise((resolve,reject)=>{
+      if(!("indexedDB" in window)){
+        reject(new Error("이 브라우저는 사진 저장소를 지원하지 않습니다."));
+        return;
+      }
+      const req = indexedDB.open(PHOTO_DB_NAME,1);
+      req.onupgradeneeded = ()=>{
+        const db = req.result;
+        if(!db.objectStoreNames.contains(PHOTO_STORE)){
+          db.createObjectStore(PHOTO_STORE,{keyPath:"id"});
+        }
+      };
+      req.onsuccess = ()=>resolve(req.result);
+      req.onerror = ()=>reject(req.error || new Error("사진 저장소를 열지 못했습니다."));
+    });
+  }
+
+  async function putPhoto(id,blob,meta={}){
+    const db = await openPhotoDb();
+    return new Promise((resolve,reject)=>{
+      const tx = db.transaction(PHOTO_STORE,"readwrite");
+      tx.objectStore(PHOTO_STORE).put({
+        id,blob,
+        type:blob.type || "image/jpeg",
+        size:blob.size,
+        createdAt:new Date().toISOString(),
+        ...meta
+      });
+      tx.oncomplete = ()=>{db.close();resolve(id)};
+      tx.onerror = ()=>{db.close();reject(tx.error || new Error("사진 저장에 실패했습니다."))};
+    });
+  }
+
+  async function getPhotoRecord(id){
+    if(!id) return null;
+    const db = await openPhotoDb();
+    return new Promise((resolve,reject)=>{
+      const tx = db.transaction(PHOTO_STORE,"readonly");
+      const req = tx.objectStore(PHOTO_STORE).get(id);
+      req.onsuccess = ()=>{db.close();resolve(req.result || null)};
+      req.onerror = ()=>{db.close();reject(req.error)};
+    });
+  }
+
+  async function deletePhoto(id){
+    if(!id) return;
+    if(photoUrlCache.has(id)){
+      URL.revokeObjectURL(photoUrlCache.get(id));
+      photoUrlCache.delete(id);
+    }
+    try{
+      const db = await openPhotoDb();
+      await new Promise((resolve,reject)=>{
+        const tx = db.transaction(PHOTO_STORE,"readwrite");
+        tx.objectStore(PHOTO_STORE).delete(id);
+        tx.oncomplete = ()=>resolve();
+        tx.onerror = ()=>reject(tx.error);
+      });
+      db.close();
+    }catch(e){
+      console.warn("사진 삭제 실패",e);
+    }
+  }
+
+  async function getPhotoUrl(id){
+    if(!id) return "";
+    if(photoUrlCache.has(id)) return photoUrlCache.get(id);
+    const record = await getPhotoRecord(id);
+    if(!record?.blob) return "";
+    const url = URL.createObjectURL(record.blob);
+    photoUrlCache.set(id,url);
+    return url;
+  }
+
+  async function compressImage(file,maxSide=1600,quality=.8){
+    if(!file || !file.type.startsWith("image/")){
+      throw new Error("이미지 파일을 선택하세요.");
+    }
+    let bitmap;
+    try{
+      bitmap = await createImageBitmap(file);
+    }catch(e){
+      bitmap = await new Promise((resolve,reject)=>{
+        const img = new Image();
+        const url = URL.createObjectURL(file);
+        img.onload = ()=>{URL.revokeObjectURL(url);resolve(img)};
+        img.onerror = ()=>{URL.revokeObjectURL(url);reject(new Error("사진을 읽지 못했습니다."))};
+        img.src = url;
+      });
+    }
+
+    const sourceW = bitmap.width || bitmap.naturalWidth;
+    const sourceH = bitmap.height || bitmap.naturalHeight;
+    const scale = Math.min(1,maxSide/Math.max(sourceW,sourceH));
+    const width = Math.max(1,Math.round(sourceW*scale));
+    const height = Math.max(1,Math.round(sourceH*scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d",{alpha:false});
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0,0,width,height);
+    ctx.drawImage(bitmap,0,0,width,height);
+    if(bitmap.close) bitmap.close();
+
+    return await new Promise((resolve,reject)=>{
+      canvas.toBlob(blob=>{
+        if(blob) resolve(blob);
+        else reject(new Error("사진 압축에 실패했습니다."));
+      },"image/jpeg",quality);
+    });
+  }
+
+  function clearPendingPhoto(){
+    pendingPhotoBlob = null;
+    $("photoInput").value = "";
+    $("photoPreviewWrap").classList.add("hidden");
+    $("photoPreview").removeAttribute("src");
+    $("photoStatus").textContent = "사진 촬영 또는 갤러리에서 선택할 수 있습니다.";
+    if(pendingPhotoObjectUrl){
+      URL.revokeObjectURL(pendingPhotoObjectUrl);
+      pendingPhotoObjectUrl = null;
+    }
+  }
+
+  async function handlePhotoSelection(){
+    const file = $("photoInput").files?.[0];
+    if(!file){
+      clearPendingPhoto();
+      return;
+    }
+    $("photoStatus").textContent = "사진을 압축하는 중입니다…";
+    try{
+      const blob = await compressImage(file,1600,.8);
+      clearPendingPhoto();
+      pendingPhotoBlob = blob;
+      pendingPhotoObjectUrl = URL.createObjectURL(blob);
+      $("photoPreview").src = pendingPhotoObjectUrl;
+      $("photoPreviewWrap").classList.remove("hidden");
+      $("photoStatus").textContent =
+        `사진 준비 완료 · ${(blob.size/1024).toFixed(0)}KB · GPS 좌표와 함께 저장됩니다.`;
+    }catch(e){
+      clearPendingPhoto();
+      $("photoStatus").textContent = e.message;
+      alert(e.message);
+    }
+  }
+
+  function normalizeSettings(raw){
+    const source = raw || {};
+    let zones = Array.isArray(source.zones) ? source.zones : defaultZones;
+    zones = zones.map(z => typeof z === "string" ? z : (z && z.name ? z.name : ""))
+      .map(z => String(z).trim()).filter(Boolean);
+    if(!zones.length) zones = [...defaultZones];
+    return {
+      zones,
+      teacherPin: String(source.teacherPin || "")
+    };
+  }
+
+  function loadJson(key, fallback){
+    try{
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : fallback;
+    }catch(e){
+      return fallback;
+    }
+  }
+
+  function saveJson(key, value){
+    localStorage.setItem(key, JSON.stringify(value));
+  }
+
+  function nowLocal(){
+    return new Date();
+  }
+
+  function formatDate(date){
+    const d = new Date(date);
+    return `${d.getFullYear()}. ${String(d.getMonth()+1).padStart(2,"0")}. ${String(d.getDate()).padStart(2,"0")}.`;
+  }
+
+  function formatTime(date, withSeconds=false){
+    const d = new Date(date);
+    const base = `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+    return withSeconds ? `${base}:${String(d.getSeconds()).padStart(2,"0")}` : base;
+  }
+
+  function formatDuration(ms){
+    const sec = Math.max(0, Math.floor(ms/1000));
+    const h = Math.floor(sec/3600);
+    const m = Math.floor((sec%3600)/60);
+    const s = sec%60;
+    return h > 0
+      ? `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`
+      : `${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
+  }
+
+  function distanceMeters(a,b){
+    if(!a || !b) return 0;
+    const R = 6371000;
+    const toRad = deg => deg*Math.PI/180;
+    const dLat = toRad(b.lat-a.lat);
+    const dLon = toRad(b.lon-a.lon);
+    const lat1 = toRad(a.lat);
+    const lat2 = toRad(b.lat);
+    const h = Math.sin(dLat/2)**2 + Math.cos(lat1)*Math.cos(lat2)*Math.sin(dLon/2)**2;
+    return 2*R*Math.asin(Math.sqrt(h));
+  }
+
+  function positionObj(pos){
+    return {
+      lat: pos.coords.latitude,
+      lon: pos.coords.longitude,
+      accuracy: Number(pos.coords.accuracy || 9999),
+      altitude: pos.coords.altitude,
+      speed: pos.coords.speed,
+      heading: pos.coords.heading,
+      timestamp: new Date(pos.timestamp || Date.now()).toISOString()
+    };
+  }
+
+  function gpsClass(acc){
+    if(acc <= 5) return ["gps-good","매우 정확"];
+    if(acc <= 10) return ["gps-warn","기록 가능"];
+    return ["gps-bad","재측정 필요"];
+  }
+
+  function updateClock(){
+    const n = nowLocal();
+    $("todayValue").textContent = formatDate(n);
+    $("clockValue").textContent = formatTime(n,true);
+  }
+
+  function checkSecureContext(){
+    const banner = $("secureBanner");
+    if(!window.isSecureContext){
+      banner.classList.remove("hidden");
+      banner.innerHTML = "현재 페이지가 보안 연결(HTTPS)이 아닙니다. 휴대폰 GPS는 <b>HTTPS 배포 주소</b>에서 가장 안정적으로 작동합니다. Vercel 배포 후에는 자동으로 HTTPS가 적용됩니다.";
+    }else{
+      banner.classList.add("hidden");
+    }
+  }
+
+  function renderZoneSettings(){
+    renderStudentZoneSelect();
+    renderZoneEditor();
+    updateZoneSummary();
+  }
+
+  function renderStudentZoneSelect(){
+    const select = $("surveyZoneSelect");
+    if(!select) return;
+    const previous = select.value;
+    select.innerHTML = `<option value="">조사 구간을 선택하세요</option>` +
+      settings.zones.map(z => `<option value="${escapeHtml(z)}">${escapeHtml(z)}</option>`).join("");
+    if(settings.zones.includes(previous)) select.value = previous;
+  }
+
+  function renderZoneEditor(){
+    const editor = $("zoneEditor");
+    if(!editor) return;
+    editor.innerHTML = "";
+    settings.zones.forEach((name,idx)=>{
+      const row = document.createElement("div");
+      row.className = "zone-edit-row";
+      row.innerHTML = `
+        <input data-zone-index="${idx}" value="${escapeHtml(name)}" aria-label="조사 구간명">
+        <button type="button" class="mini-btn" data-zone-up="${idx}" aria-label="위로 이동">↑</button>
+        <button type="button" class="mini-btn" data-zone-down="${idx}" aria-label="아래로 이동">↓</button>
+        <button type="button" class="mini-btn danger" data-zone-delete="${idx}" aria-label="삭제">✕</button>
+      `;
+      editor.appendChild(row);
+    });
+
+    editor.querySelectorAll("[data-zone-up]").forEach(btn=>{
+      btn.addEventListener("click",()=>{
+        syncZoneInputs();
+        const idx = Number(btn.dataset.zoneUp);
+        if(idx <= 0) return;
+        [settings.zones[idx-1],settings.zones[idx]] = [settings.zones[idx],settings.zones[idx-1]];
+        renderZoneEditor();
+      });
+    });
+    editor.querySelectorAll("[data-zone-down]").forEach(btn=>{
+      btn.addEventListener("click",()=>{
+        syncZoneInputs();
+        const idx = Number(btn.dataset.zoneDown);
+        if(idx >= settings.zones.length-1) return;
+        [settings.zones[idx+1],settings.zones[idx]] = [settings.zones[idx],settings.zones[idx+1]];
+        renderZoneEditor();
+      });
+    });
+    editor.querySelectorAll("[data-zone-delete]").forEach(btn=>{
+      btn.addEventListener("click",()=>{
+        syncZoneInputs();
+        const idx = Number(btn.dataset.zoneDelete);
+        if(settings.zones.length <= 1){
+          alert("조사 구간은 최소 1개가 필요합니다.");
+          return;
+        }
+        settings.zones.splice(idx,1);
+        renderZoneEditor();
+      });
+    });
+  }
+
+  function syncZoneInputs(){
+    document.querySelectorAll("[data-zone-index]").forEach(input=>{
+      const idx = Number(input.dataset.zoneIndex);
+      if(Number.isInteger(idx)) settings.zones[idx] = input.value.trim();
+    });
+  }
+
+  function updateZoneSummary(){
+    $("zoneSummary").querySelector(".value").textContent = `${settings.zones.length}개 구간`;
+  }
+
+  function openTeacherSettings(){
+    $("settingsModal").classList.remove("hidden");
+    $("teacherPinInput").value = "";
+    $("teacherPinConfirm").value = "";
+    $("newTeacherPin").value = "";
+    $("zoneManagerPanel").classList.add("hidden");
+    $("teacherAuthPanel").classList.remove("hidden");
+
+    const firstSetup = !settings.teacherPin;
+    $("teacherAuthTitle").textContent = firstSetup ? "교사 PIN 최초 설정" : "교사 PIN 확인";
+    $("teacherAuthGuide").textContent = firstSetup
+      ? "학생이 구간 목록을 임의로 수정하지 못하도록 4~8자리 숫자 PIN을 설정하세요."
+      : "교사용 조사 구간 설정을 열려면 PIN을 입력하세요.";
+    $("teacherPinConfirmWrap").classList.toggle("hidden", !firstSetup);
+    $("teacherAuthBtn").textContent = firstSetup ? "PIN 설정 후 열기" : "교사용 설정 열기";
+  }
+
+  function authenticateTeacher(){
+    const pin = $("teacherPinInput").value.trim();
+    if(!/^\d{4,8}$/.test(pin)){
+      alert("PIN은 4~8자리 숫자로 입력하세요.");
+      return;
+    }
+
+    if(!settings.teacherPin){
+      const confirmPin = $("teacherPinConfirm").value.trim();
+      if(pin !== confirmPin){
+        alert("PIN 확인 값이 일치하지 않습니다.");
+        return;
+      }
+      settings.teacherPin = pin;
+      saveJson(STORAGE.settings,settings);
+    }else if(pin !== settings.teacherPin){
+      alert("교사 PIN이 올바르지 않습니다.");
+      return;
+    }
+
+    $("teacherAuthPanel").classList.add("hidden");
+    $("zoneManagerPanel").classList.remove("hidden");
+    renderZoneEditor();
+  }
+
+  async function fetchWeather(lat,lon){
+    const url = new URL("https://api.open-meteo.com/v1/forecast");
+    url.searchParams.set("latitude",lat);
+    url.searchParams.set("longitude",lon);
+    url.searchParams.set("current","temperature_2m,relative_humidity_2m,precipitation,rain,weather_code,wind_speed_10m");
+    url.searchParams.set("timezone","auto");
+    const res = await fetch(url.toString());
+    if(!res.ok) throw new Error("날씨 정보를 불러오지 못했습니다.");
+    const data = await res.json();
+    const c = data.current || {};
+    return {
+      description: weatherCodeText(c.weather_code),
+      temperature: c.temperature_2m,
+      humidity: c.relative_humidity_2m,
+      precipitation: c.precipitation,
+      wind: c.wind_speed_10m,
+      fetchedAt: new Date().toISOString()
+    };
+  }
+
+  function weatherCodeText(code){
+    const map = {
+      0:"맑음",1:"대체로 맑음",2:"부분 흐림",3:"흐림",
+      45:"안개",48:"서리 안개",
+      51:"약한 이슬비",53:"이슬비",55:"강한 이슬비",
+      61:"약한 비",63:"비",65:"강한 비",
+      71:"약한 눈",73:"눈",75:"강한 눈",
+      80:"약한 소나기",81:"소나기",82:"강한 소나기",
+      95:"뇌우",96:"우박 동반 뇌우",99:"강한 우박 동반 뇌우"
+    };
+    return map[code] || "기상 정보";
+  }
+
+  function weatherText(w){
+    if(!w) return "날씨 정보 없음";
+    const parts = [
+      w.description,
+      Number.isFinite(Number(w.temperature)) ? `${w.temperature}℃` : null,
+      Number.isFinite(Number(w.humidity)) ? `습도 ${w.humidity}%` : null,
+      Number.isFinite(Number(w.wind)) ? `풍속 ${w.wind}km/h` : null
+    ].filter(Boolean);
+    return parts.join(" · ");
+  }
+
+  function collectBestPosition({maxMs=10000,target=5,limit=10,onUpdate}={}){
+    return new Promise((resolve,reject)=>{
+      if(!navigator.geolocation){
+        reject(new Error("이 기기에서는 GPS를 사용할 수 없습니다."));
+        return;
+      }
+      let best = null;
+      const started = Date.now();
+      let done = false;
+
+      const finish = (ok,err) => {
+        if(done) return;
+        done = true;
+        navigator.geolocation.clearWatch(watchId);
+        clearInterval(tickId);
+        if(ok && best) resolve(best);
+        else reject(err || new Error("GPS 정확도가 ±10m 이내에 도달하지 못했습니다."));
+      };
+
+      const watchId = navigator.geolocation.watchPosition(
+        pos=>{
+          const p = positionObj(pos);
+          if(!best || p.accuracy < best.accuracy) best = p;
+          const elapsed = Date.now()-started;
+          if(onUpdate) onUpdate({best,current:p,elapsed,maxMs});
+          if(best.accuracy <= target) finish(true);
+        },
+        err=>finish(false,new Error(geoErrorText(err))),
+        {enableHighAccuracy:true,maximumAge:0,timeout:maxMs+5000}
+      );
+
+      const tickId = setInterval(()=>{
+        const elapsed = Date.now()-started;
+        if(onUpdate) onUpdate({best,current:best,elapsed,maxMs});
+        if(elapsed >= maxMs){
+          if(best && best.accuracy <= limit) finish(true);
+          else finish(false,new Error(best ? `현재 정확도는 ±${Math.round(best.accuracy)}m입니다. 하늘이 잘 보이는 곳에서 다시 측정하세요.` : "GPS 신호를 받지 못했습니다."));
+        }
+      },200);
+    });
+  }
+
+  function geoErrorText(err){
+    if(!err) return "GPS 오류가 발생했습니다.";
+    if(err.code === 1) return "위치 권한이 거부되었습니다. 브라우저 설정에서 위치 권한을 허용하세요.";
+    if(err.code === 2) return "현재 위치를 확인할 수 없습니다.";
+    if(err.code === 3) return "GPS 측정 시간이 초과되었습니다.";
+    return err.message || "GPS 오류가 발생했습니다.";
+  }
+
+  async function startSurvey(){
+    const participant = $("participant").value.trim();
+    const selectedZone = $("surveyZoneSelect").value;
+    if(!participant){
+      alert("참여자 이름 또는 모둠명을 입력하세요.");
+      $("participant").focus();
+      return;
+    }
+    if(!selectedZone){
+      alert("조사 구간을 선택하세요.");
+      $("surveyZoneSelect").focus();
+      return;
+    }
+    localStorage.setItem(STORAGE.participant,participant);
+
+    const btn = $("startSurveyBtn");
+    btn.disabled = true;
+    btn.textContent = "GPS 정밀 측정 중…";
+    $("homeGpsValue").textContent = "±5m 목표로 측정 중";
+
+    try{
+      const best = await collectBestPosition({
+        maxMs:30000,
+        target:5,
+        limit:10,
+        onUpdate:({best})=>{
+          $("homeGpsValue").innerHTML = best
+            ? `현재 최선 ±${Math.round(best.accuracy)}m`
+            : "GPS 신호 검색 중";
+        }
+      });
+
+      const zone = {
+        name:selectedZone,
+        method:"교사 목록에서 선택"
+      };
+      currentSurvey = {
+        id: crypto.randomUUID ? crypto.randomUUID() : `survey-${Date.now()}`,
+        participant,
+        date: formatDate(new Date()),
+        startTime: new Date().toISOString(),
+        endTime:null,
+        startPosition:best,
+        endPosition:null,
+        zone,
+        weather:null,
+        route:[best],
+        distance:0,
+        observations:[],
+        status:"진행중"
+      };
+      saveJson(STORAGE.draft,currentSurvey);
+
+      $("homeWeatherValue").textContent = "날씨 불러오는 중";
+      try{
+        currentSurvey.weather = await fetchWeather(best.lat,best.lon);
+      }catch(e){
+        currentSurvey.weather = {description:"날씨 조회 실패"};
+      }
+      saveJson(STORAGE.draft,currentSurvey);
+      enterSurveyMode();
+    }catch(e){
+      alert(e.message);
+      $("homeGpsValue").textContent = "측정 실패";
+    }finally{
+      btn.disabled = false;
+      btn.textContent = "📍 조사 시작";
+    }
+  }
+
+  function enterSurveyMode(){
+    resetMapLayers();
+    showView("survey");
+    startRouteWatch();
+    startTimer();
+    renderSurvey();
+  }
+
+  function startRouteWatch(){
+    if(routeWatchId !== null) navigator.geolocation.clearWatch(routeWatchId);
+    if(!navigator.geolocation) return;
+    routeWatchId = navigator.geolocation.watchPosition(
+      pos=>{
+        const p = positionObj(pos);
+        lastLivePosition = p;
+        renderLiveGps(p);
+
+        if(!currentSurvey || currentSurvey.status !== "진행중") return;
+        const last = currentSurvey.route[currentSurvey.route.length-1];
+        const d = distanceMeters(last,p);
+        const elapsedSinceLast = last ? Math.abs(new Date(p.timestamp)-new Date(last.timestamp)) : 99999;
+        if(p.accuracy <= 25 && (d >= 3 || elapsedSinceLast >= 10000)){
+          currentSurvey.route.push(p);
+          if(d < 100) currentSurvey.distance += d;
+          saveJson(STORAGE.draft,currentSurvey);
+          renderSurveyMetrics();
+          drawRoute();
+        }
+      },
+      err=>{
+        $("liveGpsPill").textContent = "GPS 오류";
+        $("liveGpsPill").className = "gps-pill gps-bad";
+      },
+      {enableHighAccuracy:true,maximumAge:2000,timeout:15000}
+    );
+  }
+
+  function stopRouteWatch(){
+    if(routeWatchId !== null){
+      navigator.geolocation.clearWatch(routeWatchId);
+      routeWatchId = null;
+    }
+  }
+
+  function startTimer(){
+    clearInterval(timerId);
+    timerId = setInterval(renderSurveyMetrics,1000);
+  }
+
+  function stopTimer(){
+    clearInterval(timerId);
+    timerId = null;
+  }
+
+  function renderLiveGps(p){
+    $("liveLat").textContent = p.lat.toFixed(6);
+    $("liveLon").textContent = p.lon.toFixed(6);
+    $("liveAcc").textContent = `±${Math.round(p.accuracy)}m`;
+    const [cls,text] = gpsClass(p.accuracy);
+    $("liveGpsPill").className = `gps-pill ${cls}`;
+    $("liveGpsPill").textContent = text;
+    updateCurrentLocationOnMap(p);
+  }
+
+  function renderSurvey(){
+    if(!currentSurvey) return;
+    $("surveyDateText").textContent = `${currentSurvey.date} · ${currentSurvey.participant}`;
+    $("surveyZoneText").textContent = currentSurvey.zone?.name || "미지정";
+    $("surveyWeatherText").textContent = weatherText(currentSurvey.weather);
+    renderSurveyMetrics();
+    renderObservations();
+    drawRoute();
+  }
+
+  function renderSurveyMetrics(){
+    if(!currentSurvey) return;
+    const end = currentSurvey.endTime ? new Date(currentSurvey.endTime) : new Date();
+    $("elapsedText").textContent = formatDuration(end - new Date(currentSurvey.startTime));
+    const uniqueSpecies = new Set(currentSurvey.observations.map(o=>o.species.trim().toLowerCase())).size;
+    const totalIndividuals = currentSurvey.observations.reduce((sum,o)=>sum+Number(o.count||0),0);
+    $("speciesCountText").textContent = uniqueSpecies;
+    $("individualCountText").textContent = totalIndividuals;
+    $("distanceText").textContent = currentSurvey.distance >= 1000
+      ? `${(currentSurvey.distance/1000).toFixed(2)}km`
+      : `${Math.round(currentSurvey.distance)}m`;
+  }
+
+  function renderObservations(){
+    if(!currentSurvey) return;
+    const list = $("obsList");
+    const obs = currentSurvey.observations || [];
+    $("obsCountLabel").textContent = `${obs.length}건`;
+    if(!obs.length){
+      list.innerHTML = `<div class="muted">아직 기록된 종이 없습니다.</div>`;
+      return;
+    }
+    list.innerHTML = obs.map((o,idx)=>`
+      <article class="obs">
+        ${o.photoId ? `<img class="obs-photo" data-photo-id="${escapeHtml(o.photoId)}" alt="${escapeHtml(o.species)} 사진">` : ""}
+        <div class="obs-top">
+          <div>
+            <div class="obs-name">${escapeHtml(o.species)}</div>
+            <div class="obs-meta">
+              ${formatTime(o.time,true)} · GPS ${o.lat.toFixed(6)}, ${o.lon.toFixed(6)} · 정확도 ±${Math.round(o.accuracy)}m
+            </div>
+          </div>
+          <div class="obs-count">${o.count}개체</div>
+        </div>
+        <div class="obs-habitat">
+          ${o.tags?.length ? `<div class="tiny">${o.tags.map(escapeHtml).join(" · ")}</div>` : ""}
+          ${o.habitat ? escapeHtml(o.habitat) : ""}
+        </div>
+        <div class="btn-row no-print" style="margin-top:10px">
+          <button class="btn ghost" onclick="window.__deleteObservation(${idx})">삭제</button>
+        </div>
+      </article>
+    `).join("");
+    hydrateObservationPhotos();
+  }
+
+  async function hydrateObservationPhotos(){
+    const images = document.querySelectorAll(".obs-photo[data-photo-id]");
+    for(const img of images){
+      const id = img.dataset.photoId;
+      try{
+        const url = await getPhotoUrl(id);
+        if(url) img.src = url;
+        else img.remove();
+      }catch(e){
+        img.remove();
+      }
+    }
+  }
+
+  window.__deleteObservation = async (idx)=>{
+    if(!currentSurvey) return;
+    if(confirm("이 관찰 기록을 삭제할까요?")){
+      const removed = currentSurvey.observations.splice(idx,1)[0];
+      if(removed?.photoId) await deletePhoto(removed.photoId);
+      if(currentSurvey.status === "진행중") saveJson(STORAGE.draft,currentSurvey);
+      else{
+        const history = loadJson(STORAGE.history,[]);
+        const hidx = history.findIndex(s=>s.id===currentSurvey.id);
+        if(hidx >= 0){
+          history[hidx] = currentSurvey;
+          saveJson(STORAGE.history,history);
+        }
+      }
+      renderSurvey();
+    }
+  };
+
+
+  function ensureMap(){
+    const mapEl = $("routeMap");
+    const fallback = $("mapFallback");
+    if(!mapEl) return false;
+    if(typeof L === "undefined"){
+      mapEl.classList.add("hidden");
+      fallback?.classList.remove("hidden");
+      return false;
+    }
+    fallback?.classList.add("hidden");
+    mapEl.classList.remove("hidden");
+    if(routeMap) return true;
+
+    const initial = currentSurvey?.startPosition
+      ? [currentSurvey.startPosition.lat,currentSurvey.startPosition.lon]
+      : [36.5,127.8];
+
+    routeMap = L.map("routeMap",{
+      zoomControl:true,
+      attributionControl:true,
+      preferCanvas:true
+    }).setView(initial,currentSurvey?.startPosition ? 17 : 7);
+
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{
+      maxZoom:19,
+      attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(routeMap);
+
+    routePolyline = L.polyline([],{
+      color:"#176b4d",weight:5,opacity:.88,lineJoin:"round"
+    }).addTo(routeMap);
+    observationLayer = L.layerGroup().addTo(routeMap);
+
+    setTimeout(()=>routeMap.invalidateSize(),100);
+    return true;
+  }
+
+  function resetMapLayers(){
+    if(routeMap){
+      routeMap.remove();
+      routeMap = null;
+      routePolyline = null;
+      currentLocationMarker = null;
+      startLocationMarker = null;
+      observationLayer = null;
+      mapHasFit = false;
+    }
+  }
+
+  function updateCurrentLocationOnMap(p){
+    if(!currentSurvey || !p || !ensureMap()) return;
+    const latlng = [p.lat,p.lon];
+    if(!currentLocationMarker){
+      currentLocationMarker = L.circleMarker(latlng,{
+        radius:8,color:"#ffffff",weight:3,fillColor:"#2474d2",fillOpacity:1
+      }).addTo(routeMap).bindTooltip("현재 위치");
+    }else{
+      currentLocationMarker.setLatLng(latlng);
+    }
+  }
+
+  function markerPopupHtml(o,photoUrl=""){
+    const photo = photoUrl
+      ? `<img class="map-popup-photo" src="${photoUrl}" alt="${escapeHtml(o.species)} 사진">`
+      : "";
+    return `${photo}
+      <div class="map-popup-title">${escapeHtml(o.species)} · ${Number(o.count||0)}개체</div>
+      <div class="map-popup-meta">
+        ${formatTime(o.time,true)}<br>
+        GPS ${Number(o.lat).toFixed(6)}, ${Number(o.lon).toFixed(6)}<br>
+        정확도 ±${Math.round(o.accuracy)}m
+        ${o.tags?.length ? `<br>${o.tags.map(escapeHtml).join(" · ")}` : ""}
+        ${o.habitat ? `<br>${escapeHtml(o.habitat)}` : ""}
+      </div>`;
+  }
+
+  async function addObservationMarker(o){
+    if(!observationLayer) return;
+    const marker = L.circleMarker([o.lat,o.lon],{
+      radius:9,color:"#ffffff",weight:3,fillColor:"#d94841",fillOpacity:1
+    }).addTo(observationLayer);
+    marker.bindPopup(markerPopupHtml(o));
+    if(o.photoId){
+      try{
+        const photoUrl = await getPhotoUrl(o.photoId);
+        if(photoUrl) marker.setPopupContent(markerPopupHtml(o,photoUrl));
+      }catch(e){
+        console.warn("지도 사진 불러오기 실패",e);
+      }
+    }
+  }
+
+  function fitAllRoutePoints(){
+    if(!currentSurvey || !ensureMap()) return;
+    const points = [
+      ...(currentSurvey.route || []).map(p=>[p.lat,p.lon]),
+      ...(currentSurvey.observations || []).map(o=>[o.lat,o.lon])
+    ];
+    if(!points.length) return;
+    if(points.length === 1) routeMap.setView(points[0],18);
+    else routeMap.fitBounds(points,{padding:[28,28],maxZoom:18});
+  }
+
+  function centerCurrentLocation(){
+    if(!ensureMap()) return;
+    const p = lastLivePosition || currentSurvey?.route?.[currentSurvey.route.length-1];
+    if(!p){
+      alert("확인할 현재 위치가 없습니다.");
+      return;
+    }
+    routeMap.setView([p.lat,p.lon],18);
+    currentLocationMarker?.openTooltip();
+  }
+
+  function drawRoute(){
+    if(!currentSurvey || !ensureMap()) return;
+
+    setTimeout(()=>routeMap.invalidateSize(),80);
+    const route = currentSurvey.route || [];
+    const latlngs = route.map(p=>[p.lat,p.lon]);
+    routePolyline.setLatLngs(latlngs);
+
+    if(startLocationMarker){
+      startLocationMarker.remove();
+      startLocationMarker = null;
+    }
+    if(route.length){
+      startLocationMarker = L.circleMarker(latlngs[0],{
+        radius:6,color:"#ffffff",weight:2,fillColor:"#176b4d",fillOpacity:1
+      }).addTo(routeMap).bindTooltip("조사 시작 위치");
+    }
+
+    if(observationLayer){
+      observationLayer.clearLayers();
+      (currentSurvey.observations || []).forEach(addObservationMarker);
+    }
+
+    if(currentSurvey.status === "진행중" && lastLivePosition){
+      updateCurrentLocationOnMap(lastLivePosition);
+    }else if(currentLocationMarker){
+      currentLocationMarker.remove();
+      currentLocationMarker = null;
+    }
+
+    const boundsPoints = [
+      ...latlngs,
+      ...(currentSurvey.observations || []).map(o=>[o.lat,o.lon])
+    ];
+    if(boundsPoints.length && (!mapHasFit || currentSurvey.status !== "진행중")){
+      if(boundsPoints.length === 1){
+        routeMap.setView(boundsPoints[0],18);
+      }else{
+        routeMap.fitBounds(boundsPoints,{padding:[28,28],maxZoom:18});
+      }
+      mapHasFit = true;
+    }
+  }
+
+  function openObservationModal(){
+    if(!currentSurvey || currentSurvey.status !== "진행중"){
+      alert("진행 중인 조사가 없습니다.");
+      return;
+    }
+    measuredObservationPosition = null;
+    selectedHabitatTags.clear();
+    clearPendingPhoto();
+    $("speciesName").value = "";
+    $("individualCount").value = 1;
+    $("habitatText").value = "";
+    document.querySelectorAll("#habitatChips .chip").forEach(c=>c.classList.remove("active"));
+    $("measureAccuracy").textContent = "측정 전";
+    $("measureMessage").textContent = "종을 발견한 위치에서 측정을 시작하세요.";
+    $("measureProgress").style.width = "0%";
+    $("measurePositionBtn").disabled = false;
+    $("measurePositionBtn").textContent = "GPS 측정 시작";
+    $("observationModal").classList.remove("hidden");
+    setTimeout(()=>measureObservationPosition(),250);
+  }
+
+  function closeObservationModal(){
+    if(measurementWatcher){
+      navigator.geolocation.clearWatch(measurementWatcher);
+      measurementWatcher=null;
+    }
+    $("observationModal").classList.add("hidden");
+  }
+
+  async function measureObservationPosition(){
+    const btn = $("measurePositionBtn");
+    btn.disabled = true;
+    btn.textContent = "측정 중…";
+    try{
+      measuredObservationPosition = await collectBestPosition({
+        maxMs:30000,target:5,limit:10,
+        onUpdate:({best,elapsed,maxMs})=>{
+          $("measureProgress").style.width = `${Math.min(100,(elapsed/maxMs)*100)}%`;
+          if(best){
+            const [cls,text] = gpsClass(best.accuracy);
+            $("measureAccuracy").innerHTML = `<span class="gps-pill ${cls}">±${Math.round(best.accuracy)}m · ${text}</span>`;
+            $("measureMessage").textContent = best.accuracy <= 5
+              ? "권장 정확도에 도달했습니다."
+              : "±5m 이내가 되도록 조금 더 기다리는 중입니다.";
+          }else{
+            $("measureAccuracy").textContent = "GPS 검색 중";
+          }
+        }
+      });
+      const [cls,text] = gpsClass(measuredObservationPosition.accuracy);
+      $("measureAccuracy").innerHTML = `<span class="gps-pill ${cls}">±${Math.round(measuredObservationPosition.accuracy)}m · ${text}</span>`;
+      $("measureProgress").style.width = "100%";
+      $("measureMessage").textContent = "좌표가 확보되었습니다. 종 정보를 입력하고 저장하세요.";
+      btn.textContent = "GPS 다시 측정";
+    }catch(e){
+      measuredObservationPosition = null;
+      $("measureAccuracy").textContent = "측정 실패";
+      $("measureMessage").textContent = e.message;
+      btn.textContent = "GPS 다시 측정";
+    }finally{
+      btn.disabled = false;
+    }
+  }
+
+  async function saveObservation(){
+    const species = $("speciesName").value.trim();
+    const count = Math.max(1,Number($("individualCount").value || 1));
+    const habitat = $("habitatText").value.trim();
+    if(!measuredObservationPosition){
+      alert("먼저 GPS를 ±10m 이내로 측정하세요.");
+      return;
+    }
+    if(measuredObservationPosition.accuracy > 10){
+      alert("GPS 정확도가 ±10m를 초과합니다. 다시 측정하세요.");
+      return;
+    }
+    if(!species){
+      alert("종명을 입력하세요.");
+      $("speciesName").focus();
+      return;
+    }
+    if(!habitat && selectedHabitatTags.size===0){
+      alert("출현지역 또는 서식 특성을 입력하세요.");
+      return;
+    }
+    const observationId = crypto.randomUUID ? crypto.randomUUID() : `obs-${Date.now()}`;
+    const saveBtn = $("saveObservationBtn");
+    saveBtn.disabled = true;
+    saveBtn.textContent = pendingPhotoBlob ? "사진과 기록 저장 중…" : "기록 저장 중…";
+
+    let photoId = null;
+    try{
+      if(pendingPhotoBlob){
+        photoId = `photo-${observationId}`;
+        await putPhoto(photoId,pendingPhotoBlob,{
+          observationId,
+          surveyId:currentSurvey.id,
+          species,
+          lat:measuredObservationPosition.lat,
+          lon:measuredObservationPosition.lon,
+          accuracy:measuredObservationPosition.accuracy
+        });
+      }
+
+      currentSurvey.observations.push({
+        id:observationId,
+        species,
+        count,
+        habitat,
+        tags:Array.from(selectedHabitatTags),
+        lat:measuredObservationPosition.lat,
+        lon:measuredObservationPosition.lon,
+        accuracy:measuredObservationPosition.accuracy,
+        time:new Date().toISOString(),
+        photoId
+      });
+      saveJson(STORAGE.draft,currentSurvey);
+      closeObservationModal();
+      renderSurvey();
+    }catch(e){
+      if(photoId) await deletePhoto(photoId);
+      alert(`저장하지 못했습니다: ${e.message}`);
+    }finally{
+      saveBtn.disabled = false;
+      saveBtn.textContent = "기록 저장";
+    }
+  }
+
+  function openFinishModal(){
+    if(!currentSurvey) return;
+    const totalIndividuals = currentSurvey.observations.reduce((s,o)=>s+Number(o.count||0),0);
+    const uniqueSpecies = new Set(currentSurvey.observations.map(o=>o.species.trim().toLowerCase())).size;
+    const duration = formatDuration(new Date()-new Date(currentSurvey.startTime));
+    $("finishSummary").innerHTML = `
+      <div><b>조사 구간</b> ${escapeHtml(currentSurvey.zone?.name || "미지정")}</div>
+      <div style="margin-top:8px"><b>조사 시간</b> ${formatTime(currentSurvey.startTime)} ~ ${formatTime(new Date())} (${duration})</div>
+      <div style="margin-top:8px"><b>관찰 결과</b> ${uniqueSpecies}종 · ${totalIndividuals}개체 · ${currentSurvey.observations.length}건</div>
+      <div style="margin-top:8px"><b>이동 거리</b> ${Math.round(currentSurvey.distance)}m</div>
+    `;
+    $("finishModal").classList.remove("hidden");
+  }
+
+  function finishSurvey(){
+    if(!currentSurvey) return;
+    currentSurvey.endTime = new Date().toISOString();
+    currentSurvey.endPosition = lastLivePosition || currentSurvey.route[currentSurvey.route.length-1];
+    currentSurvey.status = "완료";
+    const history = loadJson(STORAGE.history,[]);
+    history.unshift(currentSurvey);
+    saveJson(STORAGE.history,history);
+    localStorage.removeItem(STORAGE.draft);
+    stopRouteWatch();
+    stopTimer();
+    $("finishModal").classList.add("hidden");
+    currentSurvey = null;
+    resetMapLayers();
+    renderHistory();
+    showView("history");
+  }
+
+  function renderHistory(){
+    const history = loadJson(STORAGE.history,[]);
+    const list = $("historyList");
+    if(!history.length){
+      list.innerHTML = `<div class="muted">저장된 기록이 없습니다.</div>`;
+      return;
+    }
+    list.innerHTML = history.map((s,idx)=>{
+      const uniqueSpecies = new Set((s.observations||[]).map(o=>o.species.trim().toLowerCase())).size;
+      const total = (s.observations||[]).reduce((a,o)=>a+Number(o.count||0),0);
+      return `
+        <div class="history-item">
+          <div class="history-title">${escapeHtml(s.date)} · ${escapeHtml(s.zone?.name || "미지정")}</div>
+          <div class="history-meta">
+            ${escapeHtml(s.participant)} · ${formatTime(s.startTime)}~${formatTime(s.endTime)} · ${uniqueSpecies}종 ${total}개체 · ${(s.observations||[]).length}건
+          </div>
+          <div class="btn-row" style="margin-top:10px">
+            <button class="btn ghost" onclick="window.__openHistory(${idx})">보기</button>
+            <button class="btn danger" onclick="window.__deleteHistory(${idx})">삭제</button>
+          </div>
+        </div>
+      `;
+    }).join("");
+  }
+
+  window.__openHistory = (idx)=>{
+    const history = loadJson(STORAGE.history,[]);
+    currentSurvey = history[idx];
+    resetMapLayers();
+    showView("survey");
+    renderSurvey();
+    $("addObservationBtn").classList.add("hidden");
+    $("finishSurveyBtn").classList.add("hidden");
+  };
+
+  window.__deleteHistory = async (idx)=>{
+    if(!confirm("이 조사 기록을 삭제할까요? 사진도 함께 삭제됩니다.")) return;
+    const history = loadJson(STORAGE.history,[]);
+    const removed = history.splice(idx,1)[0];
+    for(const o of (removed?.observations || [])){
+      if(o.photoId) await deletePhoto(o.photoId);
+    }
+    saveJson(STORAGE.history,history);
+    renderHistory();
+  };
+
+  function exportCsv(){
+    const history = loadJson(STORAGE.history,[]);
+    if(!history.length){alert("내보낼 기록이 없습니다.");return}
+    const rows = [[
+      "조사일자","참여자","조사구간","시작시간","종료시간","날씨","종명","개체수",
+      "출현지역·서식특성","발견시각","위도","경도","GPS정확도(m)","사진여부","사진ID"
+    ]];
+    history.forEach(s=>{
+      (s.observations||[]).forEach(o=>{
+        rows.push([
+          s.date,s.participant,s.zone?.name||"",
+          formatTime(s.startTime,true),formatTime(s.endTime,true),weatherText(s.weather),
+          o.species,o.count,[...(o.tags||[]),o.habitat||""].filter(Boolean).join(" / "),
+          formatTime(o.time,true),o.lat,o.lon,o.accuracy,o.photoId ? "있음" : "없음",o.photoId || ""
+        ]);
+      });
+    });
+    const csv = rows.map(r=>r.map(csvEscape).join(",")).join("\r\n");
+    downloadBlob("\uFEFF"+csv,`백로류_모니터링_${new Date().toISOString().slice(0,10)}.csv`,"text/csv;charset=utf-8");
+  }
+
+  function exportJson(){
+    const data = {
+      exportedAt:new Date().toISOString(),
+      notice:"사진 원본은 브라우저 IndexedDB에 저장되며 이 JSON에는 사진 식별자만 포함됩니다.",
+      settings,
+      surveys:loadJson(STORAGE.history,[])
+    };
+    downloadBlob(JSON.stringify(data,null,2),`백로류_모니터링_백업_${new Date().toISOString().slice(0,10)}.json`,"application/json");
+  }
+
+  function csvEscape(v){
+    const s = String(v ?? "");
+    return `"${s.replace(/"/g,'""')}"`;
+  }
+
+  function downloadBlob(content,name,type){
+    const blob = new Blob([content],{type});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href=url;a.download=name;a.click();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+  }
+
+  function showView(view){
+    $("homeView").classList.toggle("hidden",view!=="home");
+    $("surveyView").classList.toggle("hidden",view!=="survey");
+    $("historyView").classList.toggle("hidden",view!=="history");
+    document.querySelectorAll(".nav-btn").forEach(b=>b.classList.toggle("active",b.dataset.view===view));
+
+    if(view==="survey"){
+      if(currentSurvey){
+        renderSurvey();
+        setTimeout(()=>{if(routeMap) routeMap.invalidateSize()},120);
+        if(currentSurvey.status==="진행중"){
+          $("addObservationBtn").classList.remove("hidden");
+          $("finishSurveyBtn").classList.remove("hidden");
+        }else{
+          $("addObservationBtn").classList.add("hidden");
+          $("finishSurveyBtn").classList.add("hidden");
+        }
+      }else{
+        alert("진행 중인 조사가 없습니다.");
+        showView("home");
+      }
+    }
+    if(view==="history") renderHistory();
+  }
+
+  function escapeHtml(str){
+    return String(str ?? "").replace(/[&<>"']/g,m=>({
+      "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
+    }[m]));
+  }
+
+  function saveSettings(){
+    syncZoneInputs();
+    settings.zones = settings.zones.map(z=>String(z).trim()).filter(Boolean);
+
+    const unique = [];
+    const seen = new Set();
+    settings.zones.forEach(z=>{
+      if(!seen.has(z)){
+        seen.add(z);
+        unique.push(z);
+      }
+    });
+    settings.zones = unique;
+
+    if(!settings.zones.length){
+      alert("조사 구간을 한 개 이상 입력하세요.");
+      return;
+    }
+
+    const newPin = $("newTeacherPin").value.trim();
+    if(newPin){
+      if(!/^\d{4,8}$/.test(newPin)){
+        alert("새 PIN은 4~8자리 숫자로 입력하세요.");
+        return;
+      }
+      settings.teacherPin = newPin;
+    }
+
+    saveJson(STORAGE.settings,settings);
+    renderZoneSettings();
+    $("settingsModal").classList.add("hidden");
+    alert("조사 구간 목록이 저장되었습니다.");
+  }
+
+  // 이벤트
+  $("startSurveyBtn").addEventListener("click",startSurvey);
+  $("addObservationBtn").addEventListener("click",openObservationModal);
+  $("finishSurveyBtn").addEventListener("click",openFinishModal);
+  $("closeObsModal").addEventListener("click",closeObservationModal);
+  $("measurePositionBtn").addEventListener("click",measureObservationPosition);
+  $("saveObservationBtn").addEventListener("click",saveObservation);
+  $("photoInput").addEventListener("change",handlePhotoSelection);
+  $("removePhotoBtn").addEventListener("click",clearPendingPhoto);
+  $("centerCurrentBtn").addEventListener("click",centerCurrentLocation);
+  $("fitRouteBtn").addEventListener("click",fitAllRoutePoints);
+  $("settingsBtn").addEventListener("click",openTeacherSettings);
+  $("closeSettingsModal").addEventListener("click",()=>$("settingsModal").classList.add("hidden"));
+  $("saveSettingsBtn").addEventListener("click",saveSettings);
+  $("teacherAuthBtn").addEventListener("click",authenticateTeacher);
+  $("addZoneBtn").addEventListener("click",()=>{
+    syncZoneInputs();
+    settings.zones.push(`새 조사 구간 ${settings.zones.length+1}`);
+    renderZoneEditor();
+    const inputs = document.querySelectorAll("[data-zone-index]");
+    const last = inputs[inputs.length-1];
+    if(last){last.focus();last.select();}
+  });
+  $("closeFinishModal").addEventListener("click",()=>$("finishModal").classList.add("hidden"));
+  $("confirmFinishBtn").addEventListener("click",finishSurvey);
+  $("printCurrentBtn").addEventListener("click",()=>window.print());
+  $("exportCsvBtn").addEventListener("click",exportCsv);
+  $("exportJsonBtn").addEventListener("click",exportJson);
+  $("countMinus").addEventListener("click",()=>{
+    $("individualCount").value = Math.max(1,Number($("individualCount").value||1)-1);
+  });
+  $("countPlus").addEventListener("click",()=>{
+    $("individualCount").value = Math.max(1,Number($("individualCount").value||1)+1);
+  });
+  document.querySelectorAll("#habitatChips .chip").forEach(chip=>{
+    chip.addEventListener("click",()=>{
+      chip.classList.toggle("active");
+      chip.classList.contains("active")
+        ? selectedHabitatTags.add(chip.textContent.trim())
+        : selectedHabitatTags.delete(chip.textContent.trim());
+    });
+  });
+  document.querySelectorAll(".nav-btn").forEach(btn=>{
+    btn.addEventListener("click",()=>showView(btn.dataset.view));
+  });
+  $("teacherPinInput").addEventListener("keydown",e=>{
+    if(e.key === "Enter") authenticateTeacher();
+  });
+  $("teacherPinConfirm").addEventListener("keydown",e=>{
+    if(e.key === "Enter") authenticateTeacher();
+  });
+  window.addEventListener("resize",()=>{
+    if(routeMap) routeMap.invalidateSize();
+  });
+  window.addEventListener("beforeunload",()=>{
+    for(const url of photoUrlCache.values()) URL.revokeObjectURL(url);
+    if(pendingPhotoObjectUrl) URL.revokeObjectURL(pendingPhotoObjectUrl);
+  });
+
+  // 초기화
+  $("participant").value = localStorage.getItem(STORAGE.participant) || "";
+  renderZoneSettings();
+  updateClock();
+  setInterval(updateClock,1000);
+  checkSecureContext();
+  renderHistory();
+
+  if(currentSurvey && currentSurvey.status==="진행중"){
+    if(confirm("작성 중인 조사 기록이 있습니다. 이어서 진행할까요?")){
+      enterSurveyMode();
+    }else{
+      currentSurvey = null;
+      localStorage.removeItem(STORAGE.draft);
+    }
+  }
+})();
+</script>
+</body>
+</html>
