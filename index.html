@@ -702,7 +702,10 @@ svg.leaflet-image-layer.leaflet-interactive path {
     .brand-mark img{width:40px;height:40px;object-fit:contain;display:block}
     .brand-copy{min-width:0;line-height:1}
     .brand-school{font-size:12px;font-weight:900;letter-spacing:-.08em;color:#28458f;white-space:nowrap}
+    .brand-owner{color:#b67536}
+    .brand-app-row{display:flex;align-items:baseline;gap:5px;min-width:0}
     .brand-app{margin-top:5px;font-size:18px;font-weight:900;letter-spacing:-.07em;color:#2f6b4f;white-space:nowrap}
+    .brand-by{font-size:9px;font-weight:700;letter-spacing:0;color:#87958d;white-space:nowrap}
     h1{font-size:18px;margin:0;line-height:1.25}
     .sub{font-size:12px;color:var(--muted);margin-top:2px}
     .icon-btn{
@@ -723,6 +726,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
       color:var(--muted);transform:rotate(45deg) translateY(-2px);
       transform-origin:center
     }
+    .user-chip.open .user-menu-caret{transform:rotate(225deg) translateY(-2px)}
     .user-menu{position:fixed;right:16px;top:68px;z-index:80;min-width:154px;padding:8px;border:1px solid var(--line);border-radius:14px;background:white;box-shadow:0 10px 28px rgba(28,53,39,.16)}
     .user-menu-role{padding:7px 9px 9px;color:var(--muted);font-size:11px;border-bottom:1px solid var(--line)}
     .user-menu button{width:100%;margin-top:6px;border:0;border-radius:10px;padding:9px;background:#fff3f1;color:var(--bad);font-weight:900;font-size:12px}
@@ -1116,6 +1120,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
       .brand-mark{width:34px;height:34px;flex-basis:34px}
       .brand-mark img{width:34px;height:34px}
       .brand-app{font-size:15px}
+      .brand-by{font-size:8px}
       .brand-school{font-size:10px}
       .header-tools{gap:5px}
       .role-switch-btn{padding:6px 8px;font-size:10px}
@@ -1166,8 +1171,11 @@ svg.leaflet-image-layer.leaflet-interactive path {
         <img src="assets/muwidang-mark.png" alt="무위당 마크" />
       </div>
       <div class="brand-copy" aria-label="무위당학교 학교숲 시민과학자">
-        <div class="brand-school">무위당학교</div>
-        <div class="brand-app">학교숲 시민과학자</div>
+        <div class="brand-school">무위당학교<span class="brand-owner">_박은경</span></div>
+        <div class="brand-app-row">
+          <div class="brand-app">학교숲 시민과학자</div>
+          <span class="brand-by">made by jjlee</span>
+        </div>
       </div>
     </div>
     <div class="header-tools">
@@ -4773,6 +4781,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
       $("roleSwitchBtn").setAttribute("aria-label",isTeacherView ? "학생 화면으로 이동" : "교사 화면으로 이동");
     }
     $("userMenu").classList.add("hidden");
+    $("userMenuBtn").classList.remove("open");
     $("teacher-name").textContent = isOwner
       ? "숲선생님 박은경"
       : currentUser?.role === "collaborating_teacher"
@@ -5169,11 +5178,16 @@ svg.leaflet-image-layer.leaflet-interactive path {
   $("showLoginBtn").addEventListener("click",showLoginPanel);
   $("signupRole").addEventListener("change",updateSignupFields);
   $("submitSignupBtn").addEventListener("click",submitSignup);
-  $("userMenuBtn").addEventListener("click",()=>$("userMenu").classList.toggle("hidden"));
+  $("userMenuBtn").addEventListener("click",()=>{
+    const menu = $("userMenu");
+    const isOpen = menu.classList.toggle("hidden");
+    $("userMenuBtn").classList.toggle("open",!isOpen);
+  });
   $("logoutBtn").addEventListener("click",logout);
   document.addEventListener("click",e=>{
     if(!$("userMenu").contains(e.target) && !$("userMenuBtn").contains(e.target)){
       $("userMenu").classList.add("hidden");
+      $("userMenuBtn").classList.remove("open");
     }
   });
   $("startSurveyBtn").addEventListener("click",startSurvey);
