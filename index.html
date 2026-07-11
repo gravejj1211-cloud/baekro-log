@@ -1171,8 +1171,34 @@ svg.leaflet-image-layer.leaflet-interactive path {
             <input id="authPassword" type="password" placeholder="비밀번호를 입력하세요" autocomplete="current-password" />
           </div>
           <button class="btn primary block" id="localLoginBtn">로그인</button>
+          <div class="auth-switch"><button type="button" id="showResetBtn">비밀번호 재설정</button></div>
           <div class="auth-switch"><button type="button" id="showSignupBtn">학생·협력 교사 가입 신청</button></div>
           <div class="auth-note" style="margin-top:14px">Supabase에 등록된 이메일과 비밀번호로 로그인합니다. 승인된 회원만 이용할 수 있습니다.</div>
+        </div>
+
+        <div id="resetRequestPanel" class="hidden">
+          <h2>비밀번호 재설정</h2>
+          <p class="muted">가입한 이메일로 새 비밀번호 설정 링크를 보냅니다.</p>
+          <div class="form-group">
+            <label for="resetEmail">이메일</label>
+            <input id="resetEmail" type="email" placeholder="가입한 이메일을 입력하세요" autocomplete="email" />
+          </div>
+          <button class="btn primary block" id="requestResetBtn">재설정 메일 보내기</button>
+          <div class="auth-switch"><button type="button" id="backToLoginFromResetBtn">로그인으로 돌아가기</button></div>
+        </div>
+
+        <div id="resetUpdatePanel" class="hidden">
+          <h2>새 비밀번호 설정</h2>
+          <p class="muted">새 비밀번호를 입력하고 저장하세요.</p>
+          <div class="form-group">
+            <label for="newPasswordInput">새 비밀번호</label>
+            <input id="newPasswordInput" type="password" placeholder="새 비밀번호를 입력하세요" autocomplete="new-password" />
+          </div>
+          <div class="form-group">
+            <label for="newPasswordConfirmInput">새 비밀번호 확인</label>
+            <input id="newPasswordConfirmInput" type="password" placeholder="새 비밀번호를 한 번 더 입력하세요" autocomplete="new-password" />
+          </div>
+          <button class="btn primary block" id="updatePasswordBtn">비밀번호 저장</button>
         </div>
 
         <div id="signupPanel" class="hidden">
@@ -1780,6 +1806,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
   }));
   let teacherStudents = loadJson(STORAGE.students,[]);
   let currentUser = loadJson(STORAGE.auth,null);
+  let recoveryMode = false;
   let teacherUnlocked = false;
   let currentSurvey = loadJson(STORAGE.draft, null);
   let routeWatchId = null;
@@ -4032,12 +4059,75 @@ svg.leaflet-image-layer.leaflet-interactive path {
 
   function showLoginPanel(){
     $("loginPanel").classList.remove("hidden");
+    $("resetRequestPanel").classList.add("hidden");
+    $("resetUpdatePanel").classList.add("hidden");
     $("signupPanel").classList.add("hidden");
   }
 
   function showSignupPanel(){
     $("loginPanel").classList.add("hidden");
+    $("resetRequestPanel").classList.add("hidden");
+    $("resetUpdatePanel").classList.add("hidden");
     $("signupPanel").classList.remove("hidden");
+  }
+
+  function showResetRequestPanel(){
+    $("loginPanel").classList.add("hidden");
+    $("signupPanel").classList.add("hidden");
+    $("resetUpdatePanel").classList.add("hidden");
+    $("resetRequestPanel").classList.remove("hidden");
+    $("resetEmail").value = $("authId").value.trim();
+    setTimeout(()=>$('resetEmail').focus(),100);
+  }
+
+  function showResetUpdatePanel(){
+    recoveryMode = true;
+    currentUser = null;
+    $("loginPanel").classList.add("hidden");
+    $("signupPanel").classList.add("hidden");
+    $("resetRequestPanel").classList.add("hidden");
+    $("resetUpdatePanel").classList.remove("hidden");
+    showView("auth");
+    setTimeout(()=>$('newPasswordInput').focus(),100);
+  }
+
+  async function requestPasswordReset(){
+    const email = $("resetEmail").value.trim();
+    if(!email){
+      alert("가입한 이메일을 입력하세요.");
+      $("resetEmail").focus();
+      return;
+    }
+    const redirectTo = `${window.location.origin}${window.location.pathname}`;
+    const {error} = await supabaseClient.auth.resetPasswordForEmail(email,{redirectTo});
+    if(error){
+      alert(`재설정 메일을 보내지 못했습니다. ${error.message}`);
+      return;
+    }
+    alert("비밀번호 재설정 메일을 보냈습니다. 메일의 링크를 열어 새 비밀번호를 설정하세요.");
+    showLoginPanel();
+  }
+
+  async function updatePassword(){
+    const password = $("newPasswordInput").value;
+    const confirmPassword = $("newPasswordConfirmInput").value;
+    if(password.length < 6){
+      alert("비밀번호는 6자리 이상 입력하세요.");
+      return;
+    }
+    if(password !== confirmPassword){
+      alert("새 비밀번호 확인 값이 일치하지 않습니다.");
+      return;
+    }
+    const {error} = await supabaseClient.auth.updateUser({password});
+    if(error){
+      alert(`비밀번호를 저장하지 못했습니다. ${error.message}`);
+      return;
+    }
+    recoveryMode = false;
+    alert("비밀번호가 변경되었습니다. 새 비밀번호로 로그인하세요.");
+    await supabaseClient.auth.signOut();
+    showLoginPanel();
   }
 
   async function applySupabaseSession(session){
@@ -4088,19 +4178,24 @@ svg.leaflet-image-layer.leaflet-interactive path {
   }
 
   async function initializeSupabaseAuth(){
+    const recoveryLink = window.location.hash.includes("type=recovery") ||
+      new URLSearchParams(window.location.search).get("type") === "recovery";
+    if(recoveryLink) showResetUpdatePanel();
+    supabaseClient.auth.onAuthStateChange((event,session)=>{
+      if(event === "PASSWORD_RECOVERY"){
+        showResetUpdatePanel();
+      }else if(event === "SIGNED_IN" || event === "TOKEN_REFRESHED"){
+        if(!recoveryMode) setTimeout(()=>applySupabaseSession(session),0);
+      }else if(event === "SIGNED_OUT" && !recoveryMode){
+        setTimeout(()=>applySupabaseSession(null),0);
+      }
+    });
     const {data,error} = await supabaseClient.auth.getSession();
     if(error){
       console.error("Supabase 세션 조회 실패",error);
       return;
     }
-    await applySupabaseSession(data.session);
-    supabaseClient.auth.onAuthStateChange((event,session)=>{
-      if(event === "SIGNED_IN" || event === "TOKEN_REFRESHED"){
-        setTimeout(()=>applySupabaseSession(session),0);
-      }else if(event === "SIGNED_OUT"){
-        setTimeout(()=>applySupabaseSession(null),0);
-      }
-    });
+    if(!recoveryLink && !recoveryMode) await applySupabaseSession(data.session);
   }
 
   async function localLogin(){
@@ -4256,6 +4351,10 @@ svg.leaflet-image-layer.leaflet-interactive path {
   // 이벤트
   $("localLoginBtn").addEventListener("click",localLogin);
   $("showSignupBtn").addEventListener("click",showSignupPanel);
+  $("showResetBtn").addEventListener("click",showResetRequestPanel);
+  $("backToLoginFromResetBtn").addEventListener("click",showLoginPanel);
+  $("requestResetBtn").addEventListener("click",requestPasswordReset);
+  $("updatePasswordBtn").addEventListener("click",updatePassword);
   $("showLoginBtn").addEventListener("click",showLoginPanel);
   $("submitSignupBtn").addEventListener("click",submitSignup);
   $("userMenuBtn").addEventListener("click",()=>$("userMenu").classList.toggle("hidden"));
