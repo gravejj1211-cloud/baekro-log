@@ -1,7 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": "https://baekro-log.vercel.app",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS"
 };
@@ -70,19 +70,25 @@ Deno.serve(async (request) => {
     let storageBytes = 0;
     let storageFiles = 0;
     const visit = async (prefix = ""): Promise<void> => {
-      const { data: entries, error } = await admin.storage.from(STORAGE_BUCKET).list(prefix, {
-        limit: 1000,
-        offset: 0,
-        sortBy: { column: "name", order: "asc" }
-      });
-      if (error) throw new Error(error.message);
-      for (const entry of entries || []) {
-        const entryPath = `${prefix}${entry.name}`;
-        if (!entry.id) await visit(`${entryPath}/`);
-        else {
-          storageFiles += 1;
-          storageBytes += Number(entry.metadata?.size || 0);
+      let offset = 0;
+      while (true) {
+        const { data: entries, error } = await admin.storage.from(STORAGE_BUCKET).list(prefix, {
+          limit: 1000,
+          offset,
+          sortBy: { column: "name", order: "asc" }
+        });
+        if (error) throw new Error(error.message);
+        const page = entries || [];
+        for (const entry of page) {
+          const entryPath = `${prefix}${entry.name}`;
+          if (!entry.id) await visit(`${entryPath}/`);
+          else {
+            storageFiles += 1;
+            storageBytes += Number(entry.metadata?.size || 0);
+          }
         }
+        if (page.length < 1000) break;
+        offset += page.length;
       }
     };
     await visit();

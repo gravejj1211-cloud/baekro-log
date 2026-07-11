@@ -1,7 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": "https://baekro-log.vercel.app",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS"
 };
@@ -83,20 +83,22 @@ Deno.serve(async (request) => {
     const photoPaths = (observations || [])
       .map(observation => observation.photo_path)
       .filter((path): path is string => typeof path === "string" && Boolean(path));
-    if (photoPaths.length) await admin.storage.from("observation-photos").remove(photoPaths);
-
-    const { error:observationDeleteError } = await admin.from("observations").delete().in("survey_id", allowedIds);
-    if (observationDeleteError) {
-      console.error("observation deletion failed", observationDeleteError.message);
-      return json({ error: "관찰 기록 삭제에 실패했습니다.", detail: observationDeleteError.message }, 500);
-    }
-
+    // surveys -> observations has ON DELETE CASCADE, so this single delete
+    // keeps the database change atomic instead of deleting child rows first.
     const { error:deleteError } = await admin.from("surveys").delete().in("id", allowedIds);
     if (deleteError) {
       console.error("survey deletion failed", deleteError.message);
       return json({ error: "조사 기록 삭제에 실패했습니다.", detail: deleteError.message }, 500);
     }
-    return json({ ok: true, deleted: allowedIds.length });
+    let storageCleanupWarning = "";
+    if (photoPaths.length) {
+      const { error:photoDeleteError } = await admin.storage.from("observation-photos").remove(photoPaths);
+      if (photoDeleteError) {
+        storageCleanupWarning = "조사 기록은 삭제됐지만 일부 관찰 사진 정리에 실패했습니다.";
+        console.error("photo cleanup failed", photoDeleteError.message);
+      }
+    }
+    return json({ ok: true, deleted: allowedIds.length, storageCleanupWarning });
   } catch (error) {
     console.error("delete-my-surveys failed", error);
     return json({ error: "조사 기록 삭제 중 오류가 발생했습니다." }, 500);
