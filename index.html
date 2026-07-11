@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#176b4d" />
-  <title>학교숲 시민과학자 v10</title>
+  <title>학교숲 시민과학자 v11</title>
 <style>
 /* Leaflet 1.9.4 - 로컬 내장 */
 /* required styles */
@@ -894,36 +894,19 @@ svg.leaflet-image-layer.leaflet-interactive path {
       padding:8px 10px;border-bottom:1px solid var(--line);
       font-size:12px;font-weight:800;color:var(--muted)
     }
-    .obs-mini-map-wrap{position:relative}
-    .obs-mini-map{
-      position:relative;overflow:hidden;
-      width:100%;height:210px;background:#dfe7e2;touch-action:none
+    .obs-map-frame-wrap{
+      position:relative;width:100%;height:220px;background:#e9efeb;overflow:hidden
     }
-    .obs-mini-map img.leaflet-tile{
-      mix-blend-mode:normal!important;
-      opacity:1!important;
-      visibility:visible!important;
-      filter:none!important
+    .obs-map-frame{
+      display:block;width:100%;height:100%;border:0;background:#e9efeb
     }
-    .obs-mini-map .leaflet-tile-container{
-      opacity:1!important
+    .obs-map-link{
+      display:flex;align-items:center;justify-content:center;
+      min-height:42px;border-top:1px solid var(--line);
+      color:var(--primary);font-size:12px;font-weight:800;
+      text-decoration:none;background:#fbfdfc
     }
-    .obs-mini-map .leaflet-tile-pane{z-index:200}
-    .obs-mini-map .leaflet-overlay-pane{z-index:400}
-    .obs-mini-map .leaflet-shadow-pane{z-index:500}
-    .obs-mini-map .leaflet-marker-pane{z-index:600}
-    .obs-mini-map .leaflet-tooltip-pane{z-index:650}
-    .obs-mini-map .leaflet-popup-pane{z-index:700}
-    .obs-mini-map .leaflet-control-container{position:relative;z-index:800}
-    .obs-mini-map .leaflet-control-attribution{
-      font-size:8px!important;line-height:1.1!important
-    }
-    .obs-map-loading{
-      position:absolute;inset:0;z-index:850;display:grid;place-items:center;
-      padding:18px;text-align:center;background:rgba(246,249,247,.92);
-      color:var(--muted);font-size:12px;font-weight:800;pointer-events:none
-    }
-    .obs-map-loading.error{color:var(--bad);background:rgba(255,240,238,.94)}
+    .obs-map-link:active{background:var(--soft)}
     .photo-status{margin-top:7px;min-height:18px}
     .print-only{display:none}
     @media (max-width:520px){
@@ -934,7 +917,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
       .zone-edit-row{grid-template-columns:1fr 38px 38px 38px}
       .mini-btn{height:40px}
       #routeMap,.map-message{height:300px;min-height:300px}
-      .obs-mini-map{height:190px}
+      .obs-map-frame-wrap{height:200px}
     }
     @media print{
       body{background:white}
@@ -958,7 +941,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
       <div class="logo">鳥</div>
       <div>
         <h1>학교숲 시민과학자</h1>
-        <div class="sub">모바일 생태 조사 기록 · v10</div>
+        <div class="sub">모바일 생태 조사 기록 · v11</div>
       </div>
     </div>
     <button class="icon-btn" id="settingsBtn" aria-label="설정">⚙️</button>
@@ -1323,7 +1306,6 @@ svg.leaflet-image-layer.leaflet-interactive path {
   let mapResizeObserver = null;
   let mapHasFit = false;
   let mapTileErrorCount = 0;
-  let observationMiniMaps = [];
   let pendingPhotoBlob = null;
   let pendingPhotoObjectUrl = null;
   const photoUrlCache = new Map();
@@ -1943,9 +1925,34 @@ svg.leaflet-image-layer.leaflet-interactive path {
       : `${Math.round(currentSurvey.distance)}m`;
   }
 
+  function osmEmbedUrl(lat,lon){
+    const latitude = Number(lat);
+    const longitude = Number(lon);
+    const latDelta = 0.00105;
+    const cosLat = Math.max(0.2,Math.cos(latitude*Math.PI/180));
+    const lonDelta = latDelta/cosLat;
+    const bbox = [
+      longitude-lonDelta,
+      latitude-latDelta,
+      longitude+lonDelta,
+      latitude+latDelta
+    ].map(v=>v.toFixed(6)).join(",");
+    const params = new URLSearchParams({
+      bbox,
+      layer:"mapnik",
+      marker:`${latitude.toFixed(6)},${longitude.toFixed(6)}`
+    });
+    return `https://www.openstreetmap.org/export/embed.html?${params.toString()}`;
+  }
+
+  function osmViewUrl(lat,lon){
+    const latitude = Number(lat).toFixed(6);
+    const longitude = Number(lon).toFixed(6);
+    return `https://www.openstreetmap.org/?mlat=${latitude}&mlon=${longitude}#map=18/${latitude}/${longitude}`;
+  }
+
   function renderObservations(){
     if(!currentSurvey) return;
-    disposeObservationMiniMaps();
     const list = $("obsList");
     const obs = currentSurvey.observations || [];
     $("obsCountLabel").textContent = `${obs.length}건`;
@@ -1974,11 +1981,20 @@ svg.leaflet-image-layer.leaflet-interactive path {
             관찰 위치 · ${Number(o.lat).toFixed(6)}, ${Number(o.lon).toFixed(6)}
             · 정확도 ±${Math.round(Number(o.accuracy || 0))}m
           </div>
-          <div class="obs-mini-map-wrap">
-            <div id="obsMap-${idx}" class="obs-mini-map" data-observation-index="${idx}"
-              aria-label="${escapeHtml(o.species)} 관찰 위치 지도"></div>
-            <div id="obsMapStatus-${idx}" class="obs-map-loading">지도 불러오는 중…</div>
+          <div class="obs-map-frame-wrap">
+            <iframe
+              class="obs-map-frame"
+              src="${escapeHtml(osmEmbedUrl(o.lat,o.lon))}"
+              title="${escapeHtml(o.species)} 관찰 위치 지도"
+              loading="lazy"
+              referrerpolicy="strict-origin-when-cross-origin"
+              allowfullscreen>
+            </iframe>
           </div>
+          <a class="obs-map-link" href="${escapeHtml(osmViewUrl(o.lat,o.lon))}"
+             target="_blank" rel="noopener noreferrer">
+            큰 지도에서 위치 보기
+          </a>
         </div>
         <div class="btn-row no-print" style="margin-top:10px">
           <button class="btn ghost" onclick="window.__deleteObservation(${idx})">삭제</button>
@@ -1986,96 +2002,6 @@ svg.leaflet-image-layer.leaflet-interactive path {
       </article>
     `).join("");
     hydrateObservationPhotos();
-    hydrateObservationMaps();
-  }
-
-  function disposeObservationMiniMaps(){
-    for(const map of observationMiniMaps){
-      try{ map.remove(); }catch(e){}
-    }
-    observationMiniMaps = [];
-  }
-
-  function hydrateObservationMaps(){
-    if(typeof L === "undefined" || !currentSurvey) return;
-    const elements = document.querySelectorAll(".obs-mini-map[data-observation-index]");
-
-    requestAnimationFrame(()=>{
-      elements.forEach(el=>{
-        const idx = Number(el.dataset.observationIndex);
-        const o = currentSurvey.observations?.[idx];
-        if(!o || !Number.isFinite(Number(o.lat)) || !Number.isFinite(Number(o.lon))) return;
-
-        const point = [Number(o.lat),Number(o.lon)];
-        const zoom = 18;
-
-        const miniMap = L.map(el,{
-          zoomControl:false,
-          attributionControl:true,
-          dragging:false,
-          touchZoom:false,
-          scrollWheelZoom:false,
-          doubleClickZoom:false,
-          boxZoom:false,
-          keyboard:false,
-          tap:false,
-          preferCanvas:true
-        }).setView(point,zoom);
-
-        const statusEl = $(`obsMapStatus-${idx}`);
-        let tileErrorCount = 0;
-        const tileLayer = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{
-          maxZoom:19,
-          minZoom:3,
-          keepBuffer:2,
-          updateWhenIdle:false,
-          attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        })
-        .on("load",()=>{
-          el.querySelectorAll("img.leaflet-tile").forEach(tile=>{
-            tile.style.mixBlendMode = "normal";
-            tile.style.visibility = "visible";
-            tile.style.opacity = "1";
-          });
-          if(statusEl) statusEl.classList.add("hidden");
-          requestAnimationFrame(()=>{
-            miniMap.invalidateSize({pan:false});
-            miniMap.setView(point,zoom,{animate:false});
-          });
-        })
-        .on("tileerror",()=>{
-          tileErrorCount += 1;
-          if(tileErrorCount >= 3 && statusEl){
-            statusEl.textContent = "지도 배경을 불러오지 못했습니다. 인터넷 연결 후 다시 열어 주세요.";
-            statusEl.classList.add("error");
-          }
-        })
-        .addTo(miniMap);
-
-        // 관찰 기록 지도에는 이동 경로를 넣지 않고, 해당 관찰 지점만 표시합니다.
-        L.circle(point,{
-          radius:Math.max(1,Number(o.accuracy || 1)),
-          color:"#d94841",weight:1.5,fillColor:"#d94841",fillOpacity:.12,
-          interactive:false
-        }).addTo(miniMap);
-
-        L.circleMarker(point,{
-          radius:8,color:"#ffffff",weight:3,
-          fillColor:"#d94841",fillOpacity:1,
-          interactive:false
-        }).addTo(miniMap);
-
-        const refreshMiniMap = ()=>{
-          miniMap.invalidateSize({pan:false});
-          miniMap.setView(point,zoom,{animate:false});
-          tileLayer.redraw();
-        };
-        requestAnimationFrame(refreshMiniMap);
-        setTimeout(refreshMiniMap,150);
-        setTimeout(refreshMiniMap,600);
-        observationMiniMaps.push(miniMap);
-      });
-    });
   }
 
   async function hydrateObservationPhotos(){
@@ -2228,7 +2154,6 @@ svg.leaflet-image-layer.leaflet-interactive path {
   }
 
   function resetMapLayers(){
-    disposeObservationMiniMaps();
     if(mapResizeObserver){
       mapResizeObserver.disconnect();
       mapResizeObserver = null;
