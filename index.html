@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#176b4d" />
-  <title>학교숲 시민과학자 v14</title>
+  <title>학교숲 시민과학자 v16</title>
 <style>
 /* Leaflet 1.9.4 - 로컬 내장 */
 /* required styles */
@@ -811,45 +811,57 @@ svg.leaflet-image-layer.leaflet-interactive path {
     .low-accuracy-wrap{
       margin-top:11px;padding-top:11px;border-top:1px solid #ead7ae
     }
-    .location-picker-modal{z-index:20000}
-    .location-picker-modal .sheet{z-index:20001;max-height:96vh}
-    .location-picker-guide{
-      margin-bottom:11px;padding:10px 12px;border-radius:12px;
-      background:#f1f7f3;color:#385448;font-size:12px;line-height:1.5
+    .route-map-selection{
+      position:absolute;inset:0;z-index:1400;pointer-events:none
     }
-    .location-picker-wrap{
-      position:relative;width:100%;height:min(52vh,440px);
-      min-height:310px;border:1px solid var(--line);border-radius:14px;
-      overflow:hidden;background:#e7ede9
+    .route-map-selection-guide{
+      position:absolute;left:50%;top:12px;transform:translateX(-50%);
+      width:max-content;max-width:calc(100% - 28px);
+      padding:8px 11px;border-radius:999px;
+      background:rgba(255,255,255,.96);
+      box-shadow:0 3px 14px rgba(0,0,0,.18);
+      color:#334a3e;font-size:11px;font-weight:900;text-align:center
     }
-    #locationPickerMap{width:100%;height:100%;background:#e7ede9}
-    #locationPickerMap img.leaflet-tile{
-      mix-blend-mode:normal!important;opacity:1!important;
-      visibility:visible!important;filter:none!important
+    .route-map-crosshair{
+      position:absolute;left:50%;top:50%;width:38px;height:38px;
+      transform:translate(-50%,-50%);pointer-events:none
     }
-    .location-crosshair{
-      position:absolute;left:50%;top:50%;z-index:1200;
-      width:34px;height:34px;transform:translate(-50%,-50%);
-      pointer-events:none
-    }
-    .location-crosshair::before,
-    .location-crosshair::after{
+    .route-map-crosshair::before,
+    .route-map-crosshair::after{
       content:"";position:absolute;background:#d9473f;
-      box-shadow:0 0 0 1px rgba(255,255,255,.85)
+      box-shadow:0 0 0 1px rgba(255,255,255,.9)
     }
-    .location-crosshair::before{left:16px;top:0;width:3px;height:34px}
-    .location-crosshair::after{left:0;top:16px;width:34px;height:3px}
-    .location-crosshair-dot{
-      position:absolute;left:50%;top:50%;width:11px;height:11px;
+    .route-map-crosshair::before{left:17px;top:0;width:4px;height:38px}
+    .route-map-crosshair::after{left:0;top:17px;width:38px;height:4px}
+    .route-map-crosshair-dot{
+      position:absolute;left:50%;top:50%;width:12px;height:12px;
       transform:translate(-50%,-50%);border-radius:50%;
       background:#d9473f;border:3px solid white;
-      box-shadow:0 2px 8px rgba(0,0,0,.25)
+      box-shadow:0 2px 8px rgba(0,0,0,.28)
     }
-    .picker-coordinates{
-      margin:10px 0;padding:9px 11px;border-radius:11px;
-      background:#f7faf8;border:1px solid var(--line);
-      font-size:12px;font-weight:800;text-align:center
+    .map-selection-toolbar{
+      position:fixed;left:12px;right:12px;
+      bottom:calc(94px + env(safe-area-inset-bottom));
+      z-index:25000;padding:11px;border:1px solid var(--line);
+      border-radius:16px;background:rgba(255,255,255,.98);
+      box-shadow:0 10px 28px rgba(0,0,0,.22)
     }
+    .map-selection-toolbar-head{
+      display:flex;align-items:center;justify-content:space-between;
+      gap:10px;margin-bottom:8px
+    }
+    .map-selection-toolbar-title{font-weight:900}
+    .map-selection-close{
+      width:38px;height:38px;border:1px solid var(--line);
+      border-radius:11px;background:white;font-size:22px;line-height:1
+    }
+    .map-selection-coordinates{
+      margin-bottom:9px;padding:8px 10px;border-radius:10px;
+      background:#f3f7f4;color:#31483c;text-align:center;
+      font-size:12px;font-weight:900
+    }
+    body.map-selection-active{overflow:auto}
+    body.map-selection-active .footer-nav{pointer-events:none;opacity:.28}
     .zone-editor{display:flex;flex-direction:column;gap:9px}
     .zone-edit-row{
       display:grid;grid-template-columns:1fr 42px 42px 42px;gap:7px;align-items:center
@@ -876,6 +888,11 @@ svg.leaflet-image-layer.leaflet-interactive path {
       font-size:11px;font-weight:900;white-space:nowrap
     }
     .reflection-card{border-left:5px solid var(--primary)}
+    .submitted-location-card{border-left:5px solid #2474d2}
+    .submitted-location-value{
+      margin-top:5px;font-weight:900;font-size:16px;line-height:1.45;
+      word-break:break-word
+    }
     .reflection-text{
       margin-top:8px;padding:12px;border-radius:12px;background:#f4f8f5;
       color:#263b31;line-height:1.65;white-space:pre-wrap;word-break:break-word
@@ -1016,7 +1033,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
       <div class="logo">鳥</div>
       <div>
         <h1>학교숲 시민과학자</h1>
-        <div class="sub">모바일 생태 조사 기록 · v14</div>
+        <div class="sub">모바일 생태 조사 기록 · v16</div>
       </div>
     </div>
     <button class="icon-btn" id="settingsBtn" aria-label="설정">⚙️</button>
@@ -1099,7 +1116,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
         <div id="submittedAtText" class="tiny" style="margin-top:8px"></div>
       </div>
 
-      <div class="card no-print">
+      <div id="liveGpsCard" class="card no-print">
         <h2>현재 GPS <span id="liveGpsPill" class="gps-pill gps-bad">대기 중</span></h2>
         <div class="status-grid">
           <div class="status-item">
@@ -1121,21 +1138,43 @@ svg.leaflet-image-layer.leaflet-interactive path {
         </div>
       </div>
 
+      <div id="submittedLocationCard" class="card submitted-location-card hidden">
+        <h2>조사 종료 정보 <span class="submission-badge">기록 당시 값</span></h2>
+        <div class="status-grid">
+          <div class="status-item">
+            <div class="label">총 이동 거리</div>
+            <div class="submitted-location-value" id="submittedDistanceText">-</div>
+          </div>
+          <div class="status-item">
+            <div class="label">조사 종료 위치</div>
+            <div class="submitted-location-value" id="submittedEndPositionText">-</div>
+          </div>
+        </div>
+      </div>
+
       <div class="card route-wrap">
         <h2>조사 이동 경로</h2>
         <div style="position:relative">
           <div id="routeMap" aria-label="조사 이동 경로 지도"></div>
           <div id="mapStatus" class="map-status">지도 준비 중…</div>
+          <div id="routeMapSelectionOverlay" class="route-map-selection hidden" aria-hidden="true">
+            <div class="route-map-selection-guide">
+              지도를 움직여 관찰한 생물의 위치를 중앙에 맞추세요.
+            </div>
+            <div class="route-map-crosshair" aria-hidden="true">
+              <span class="route-map-crosshair-dot"></span>
+            </div>
+          </div>
         </div>
         <div id="mapFallback" class="map-message hidden">
           지도를 불러오지 못했습니다.<br>인터넷 연결을 확인해 주세요.
         </div>
         <div class="route-legend">
           <span><span class="dot" style="background:#176b4d"></span>이동 경로</span>
-          <span><span class="dot" style="background:#2474d2"></span>현재 위치</span>
+          <span id="routePositionLegend"><span class="dot" style="background:#2474d2"></span><span id="routePositionLegendText">현재 위치</span></span>
           <span><span class="dot" style="background:#d94841"></span>종 발견 위치·사진</span>
         </div>
-        <div class="btn-row no-print" style="margin-top:10px">
+        <div id="routeMapControls" class="btn-row no-print" style="margin-top:10px">
           <button class="btn ghost" id="centerCurrentBtn">현재 위치</button>
           <button class="btn ghost" id="fitRouteBtn">전체 경로</button>
         </div>
@@ -1177,6 +1216,25 @@ svg.leaflet-image-layer.leaflet-interactive path {
       <button class="nav-btn" data-view="history"><span>📚</span>기록</button>
     </div>
   </nav>
+</div>
+
+<div id="mapSelectionToolbar" class="map-selection-toolbar hidden no-print">
+  <div class="map-selection-toolbar-head">
+    <div class="map-selection-toolbar-title">관찰 위치 지정</div>
+    <button type="button" class="map-selection-close" id="closeMapSelectionBtn"
+      aria-label="위치 지정 닫기">✕</button>
+  </div>
+  <div id="mapSelectionCoordinates" class="map-selection-coordinates">
+    선택 위치 준비 중
+  </div>
+  <div class="btn-row">
+    <button type="button" class="btn secondary" id="mapSelectionCurrentGpsBtn">
+      측정 GPS
+    </button>
+    <button type="button" class="btn primary" id="confirmMapSelectionBtn">
+      이 위치로 지정
+    </button>
+  </div>
 </div>
 
 <!-- 종 기록 모달 -->
@@ -1295,35 +1353,6 @@ svg.leaflet-image-layer.leaflet-interactive path {
     </div>
 
     <button class="btn primary block" id="saveObservationBtn">기록 저장</button>
-  </div>
-</div>
-
-<!-- 관찰 위치 지도 지정 모달 -->
-<div id="locationPickerModal" class="modal location-picker-modal hidden">
-  <div class="sheet">
-    <div class="sheet-head">
-      <h3>지도에서 관찰 위치 지정</h3>
-      <button class="icon-btn" id="closeLocationPicker">✕</button>
-    </div>
-
-    <div class="location-picker-guide">
-      학생이 서 있는 위치가 아니라 <b>관찰한 생물이 있었던 위치</b>가
-      화면 중앙의 빨간 십자표시에 오도록 지도를 움직이세요.
-    </div>
-
-    <div class="location-picker-wrap">
-      <div id="locationPickerMap" aria-label="관찰 위치 지정 지도"></div>
-      <div class="location-crosshair" aria-hidden="true">
-        <span class="location-crosshair-dot"></span>
-      </div>
-    </div>
-
-    <div id="pickerCoordinates" class="picker-coordinates">좌표 준비 중</div>
-
-    <div class="btn-row">
-      <button type="button" class="btn secondary" id="pickerCurrentGpsBtn">측정 GPS로 돌아가기</button>
-      <button type="button" class="btn primary" id="confirmPickerLocationBtn">이 위치로 지정</button>
-    </div>
   </div>
 </div>
 
@@ -1449,14 +1478,14 @@ svg.leaflet-image-layer.leaflet-interactive path {
   let deviceObservationPosition = null;
   let observationLocationMethod = null;
   let observationLocationNote = "";
-  let locationPickerMap = null;
-  let locationPickerSourceLayer = null;
+  let selectingObservationLocation = false;
   let selectedHabitatTags = new Set();
   let measurementWatcher = null;
   let routeMap = null;
   let routePolyline = null;
   let currentLocationMarker = null;
   let startLocationMarker = null;
+  let endLocationMarker = null;
   let observationLayer = null;
   let mapTileLayer = null;
   let mapResizeObserver = null;
@@ -2076,6 +2105,34 @@ svg.leaflet-image-layer.leaflet-interactive path {
       survey?.status === "완료";
   }
 
+  function renderSurveyMode(){
+    if(!currentSurvey) return;
+
+    const draft = isDraftSurvey(currentSurvey);
+    $("liveGpsCard").classList.toggle("hidden",!draft);
+    $("submittedLocationCard").classList.toggle("hidden",draft);
+    $("routeMapControls").classList.toggle("hidden",!draft);
+
+    $("routePositionLegendText").textContent =
+      draft ? "현재 위치" : "조사 종료 위치";
+
+    const endPosition =
+      currentSurvey.endPosition ||
+      currentSurvey.route?.[currentSurvey.route.length-1] ||
+      null;
+
+    if(!draft){
+      $("submittedDistanceText").textContent =
+        Number(currentSurvey.distance || 0) >= 1000
+          ? `${(Number(currentSurvey.distance || 0)/1000).toFixed(2)}km`
+          : `${Math.round(Number(currentSurvey.distance || 0))}m`;
+
+      $("submittedEndPositionText").textContent = endPosition
+        ? `${Number(endPosition.lat).toFixed(6)}, ${Number(endPosition.lon).toFixed(6)}`
+        : "저장된 종료 위치 없음";
+    }
+  }
+
   function renderSurvey(){
     if(!currentSurvey) return;
     $("surveyDateText").textContent = `${currentSurvey.date} · ${currentSurvey.participant}`;
@@ -2094,6 +2151,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
       reflectionCard.classList.add("hidden");
     }
 
+    renderSurveyMode();
     renderSurveyMetrics();
     renderObservations();
     drawRoute();
@@ -2599,6 +2657,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
       mapTileLayer = null;
       currentLocationMarker = null;
       startLocationMarker = null;
+      endLocationMarker = null;
       observationLayer = null;
       mapHasFit = false;
     }
@@ -2681,10 +2740,27 @@ svg.leaflet-image-layer.leaflet-interactive path {
       startLocationMarker.remove();
       startLocationMarker = null;
     }
+    if(endLocationMarker){
+      endLocationMarker.remove();
+      endLocationMarker = null;
+    }
+
     if(route.length){
       startLocationMarker = L.circleMarker(latlngs[0],{
         radius:6,color:"#ffffff",weight:2,fillColor:"#176b4d",fillOpacity:1
       }).addTo(routeMap).bindTooltip("조사 시작 위치");
+    }
+
+    if(!isDraftSurvey(currentSurvey)){
+      const endPosition =
+        currentSurvey.endPosition ||
+        currentSurvey.route?.[currentSurvey.route.length-1] ||
+        null;
+      if(endPosition){
+        endLocationMarker = L.circleMarker([endPosition.lat,endPosition.lon],{
+          radius:8,color:"#ffffff",weight:3,fillColor:"#2474d2",fillOpacity:1
+        }).addTo(routeMap).bindTooltip("조사 종료 위치");
+      }
     }
 
     if(observationLayer){
@@ -2699,9 +2775,13 @@ svg.leaflet-image-layer.leaflet-interactive path {
       currentLocationMarker = null;
     }
 
+    const submittedEndPosition = !isDraftSurvey(currentSurvey)
+      ? (currentSurvey.endPosition || currentSurvey.route?.[currentSurvey.route.length-1] || null)
+      : null;
     const boundsPoints = [
       ...latlngs,
-      ...(currentSurvey.observations || []).map(o=>[o.lat,o.lon])
+      ...(currentSurvey.observations || []).map(o=>[o.lat,o.lon]),
+      ...(submittedEndPosition ? [[submittedEndPosition.lat,submittedEndPosition.lon]] : [])
     ];
     if(boundsPoints.length && (!mapHasFit || currentSurvey.status !== "진행중")){
       if(boundsPoints.length === 1){
@@ -2778,57 +2858,11 @@ svg.leaflet-image-layer.leaflet-interactive path {
     $("locationMethodNote").classList.add("hidden");
   }
 
-  function initLocationPickerMap(){
-    if(locationPickerMap) return;
-
-    locationPickerMap = L.map("locationPickerMap",{
-      zoomControl:true,
-      attributionControl:true,
-      dragging:true,
-      touchZoom:true,
-      scrollWheelZoom:true,
-      doubleClickZoom:true,
-      boxZoom:false,
-      keyboard:false,
-      tap:true,
-      preferCanvas:true
-    });
-
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{
-      maxZoom:19,
-      minZoom:3,
-      keepBuffer:2,
-      updateWhenIdle:false,
-      attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-    }).addTo(locationPickerMap);
-
-    locationPickerSourceLayer = L.layerGroup().addTo(locationPickerMap);
-    locationPickerMap.on("move",updatePickerCoordinates);
-  }
-
-  function updatePickerCoordinates(){
-    if(!locationPickerMap) return;
-    const center = locationPickerMap.getCenter();
-    $("pickerCoordinates").textContent =
+  function updateMainMapSelectionCoordinates(){
+    if(!selectingObservationLocation || !routeMap) return;
+    const center = routeMap.getCenter();
+    $("mapSelectionCoordinates").textContent =
       `선택 위치 · ${center.lat.toFixed(6)}, ${center.lng.toFixed(6)}`;
-  }
-
-  function drawPickerSourcePosition(){
-    if(!locationPickerMap || !locationPickerSourceLayer) return;
-    locationPickerSourceLayer.clearLayers();
-    const source = deviceObservationPosition || lastLivePosition;
-    if(!source) return;
-
-    const point = [source.lat,source.lon];
-    L.circle(point,{
-      radius:Math.max(1,Number(source.accuracy || 1)),
-      color:"#176b4d",weight:1.5,fillColor:"#176b4d",fillOpacity:.10,
-      interactive:false
-    }).addTo(locationPickerSourceLayer);
-    L.circleMarker(point,{
-      radius:6,color:"#ffffff",weight:2,
-      fillColor:"#176b4d",fillOpacity:1,interactive:false
-    }).addTo(locationPickerSourceLayer).bindTooltip("측정된 GPS 위치");
   }
 
   function openLocationPicker(){
@@ -2838,40 +2872,69 @@ svg.leaflet-image-layer.leaflet-interactive path {
       return;
     }
 
-    $("locationPickerModal").classList.remove("hidden");
-    initLocationPickerMap();
-    drawPickerSourcePosition();
-    locationPickerMap.setView([source.lat,source.lon],18,{animate:false});
-    updatePickerCoordinates();
+    $("observationModal").classList.add("hidden");
+    showView("survey");
 
-    requestAnimationFrame(()=>locationPickerMap.invalidateSize({pan:false}));
+    if(!ensureMap() || !routeMap){
+      $("observationModal").classList.remove("hidden");
+      alert("조사 이동 경로 지도를 준비하지 못했습니다. 인터넷 연결 후 다시 시도하세요.");
+      return;
+    }
+
+    selectingObservationLocation = true;
+    $("routeMapSelectionOverlay").classList.remove("hidden");
+    $("mapSelectionToolbar").classList.remove("hidden");
+    document.body.classList.add("map-selection-active");
+
+    routeMap.on("move",updateMainMapSelectionCoordinates);
+
+    const routeCard = document.querySelector(".route-wrap");
+    routeCard?.scrollIntoView({behavior:"smooth",block:"center"});
+
+    const moveToSource = ()=>{
+      routeMap.invalidateSize({pan:false});
+      routeMap.setView([source.lat,source.lon],18,{animate:false});
+      updateMainMapSelectionCoordinates();
+      mapTileLayer?.redraw();
+    };
+
+    requestAnimationFrame(moveToSource);
+    setTimeout(moveToSource,250);
     setTimeout(()=>{
-      locationPickerMap.invalidateSize({pan:false});
-      locationPickerMap.setView([source.lat,source.lon],18,{animate:false});
-    },180);
-    setTimeout(()=>locationPickerMap.invalidateSize({pan:false}),600);
+      routeMap.invalidateSize({pan:false});
+      updateMainMapSelectionCoordinates();
+    },700);
   }
 
-  function closeLocationPicker(){
-    $("locationPickerModal").classList.add("hidden");
+  function closeLocationPicker(restoreObservation=true){
+    selectingObservationLocation = false;
+    routeMap?.off("move",updateMainMapSelectionCoordinates);
+    $("routeMapSelectionOverlay").classList.add("hidden");
+    $("mapSelectionToolbar").classList.add("hidden");
+    document.body.classList.remove("map-selection-active");
+
+    if(restoreObservation){
+      $("observationModal").classList.remove("hidden");
+    }
   }
 
   function centerPickerOnMeasuredGps(){
     const source = deviceObservationPosition || lastLivePosition;
-    if(!source || !locationPickerMap) return;
-    locationPickerMap.setView([source.lat,source.lon],18);
+    if(!source || !routeMap) return;
+    routeMap.setView([source.lat,source.lon],18);
+    updateMainMapSelectionCoordinates();
   }
 
   function confirmPickerLocation(){
-    if(!locationPickerMap) return;
-    const center = locationPickerMap.getCenter();
+    if(!routeMap || !selectingObservationLocation) return;
+    const center = routeMap.getCenter();
     acceptObservationLocation({
       lat:center.lat,
       lon:center.lng,
       accuracy:Number(deviceObservationPosition?.accuracy || 9999),
       timestamp:new Date().toISOString()
-    },"map","학생이 지도 중앙으로 지정");
-    closeLocationPicker();
+    },"map","학생이 조사 이동 경로 지도 중앙으로 지정");
+    closeLocationPicker(true);
   }
 
   function confirmLowAccuracyLocation(){
@@ -2916,7 +2979,9 @@ svg.leaflet-image-layer.leaflet-interactive path {
       navigator.geolocation.clearWatch(measurementWatcher);
       measurementWatcher=null;
     }
-    $("locationPickerModal").classList.add("hidden");
+    if(selectingObservationLocation){
+      closeLocationPicker(false);
+    }
     $("observationModal").classList.add("hidden");
   }
 
@@ -3362,9 +3427,9 @@ svg.leaflet-image-layer.leaflet-interactive path {
     $("lowAccuracyReasonWrap").classList.toggle("hidden");
   });
   $("confirmLowAccuracyBtn").addEventListener("click",confirmLowAccuracyLocation);
-  $("closeLocationPicker").addEventListener("click",closeLocationPicker);
-  $("pickerCurrentGpsBtn").addEventListener("click",centerPickerOnMeasuredGps);
-  $("confirmPickerLocationBtn").addEventListener("click",confirmPickerLocation);
+  $("closeMapSelectionBtn").addEventListener("click",()=>closeLocationPicker(true));
+  $("mapSelectionCurrentGpsBtn").addEventListener("click",centerPickerOnMeasuredGps);
+  $("confirmMapSelectionBtn").addEventListener("click",confirmPickerLocation);
   $("saveObservationBtn").addEventListener("click",saveObservation);
   $("photoInput").addEventListener("change",handlePhotoSelection);
   $("removePhotoBtn").addEventListener("click",clearPendingPhoto);
