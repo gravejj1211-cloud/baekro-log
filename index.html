@@ -1163,8 +1163,8 @@ svg.leaflet-image-layer.leaflet-interactive path {
         <div id="loginPanel">
           <h2>로그인</h2>
           <div class="form-group">
-            <label for="authId">이메일</label>
-            <input id="authId" type="email" placeholder="가입한 이메일을 입력하세요" autocomplete="username" />
+            <label for="authId">아이디</label>
+            <input id="authId" type="text" placeholder="가입한 아이디를 입력하세요" autocomplete="username" />
           </div>
           <div class="form-group">
             <label for="authPassword">비밀번호</label>
@@ -1173,7 +1173,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
           <button class="btn primary block" id="localLoginBtn">로그인</button>
           <div class="auth-switch"><button type="button" id="showResetBtn">비밀번호 재설정</button></div>
           <div class="auth-switch"><button type="button" id="showSignupBtn">학생·협력 교사 가입 신청</button></div>
-          <div class="auth-note" style="margin-top:14px">Supabase에 등록된 이메일과 비밀번호로 로그인합니다. 승인된 회원만 이용할 수 있습니다.</div>
+          <div class="auth-note" style="margin-top:14px">가입한 아이디와 비밀번호로 로그인합니다. 이메일은 비밀번호 재설정에 사용됩니다.</div>
         </div>
 
         <div id="resetRequestPanel" class="hidden">
@@ -1439,7 +1439,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
 
         <div class="card">
           <h2>전체 조사 기록</h2>
-          <p class="muted">현재는 이 기기에 저장된 조사 기록을 표시합니다. Supabase 연결 후 모든 학생의 제출 기록을 함께 확인할 수 있습니다.</p>
+          <p class="muted">Supabase에 저장된 전체 학생의 제출 기록을 표시합니다.</p>
           <div id="teacherHistoryList" class="teacher-history-list">
             <div class="muted">저장된 조사 기록이 없습니다.</div>
           </div>
@@ -1455,7 +1455,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
               <button class="btn secondary" id="addTeacherBtn">＋ 협력 교사</button>
             </div>
           </div>
-          <p class="muted">학생별 조사 횟수와 관찰 기록 현황을 확인합니다. 학생 계정과 전체 학생 데이터는 Supabase 연결 후 관리할 수 있습니다.</p>
+          <p class="muted">학생별 조사 횟수와 관찰 기록 현황을 확인하고 회원 정보를 관리합니다.</p>
           <div class="teacher-student-actions" style="margin:12px 0">
             <button class="btn secondary" id="studentApplicationsSummary" type="button" disabled>학생 신청 0</button>
             <button class="btn secondary" id="teacherApplicationsSummary" type="button" disabled>협력 교사 신청 0</button>
@@ -1550,7 +1550,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
           <button type="button" id="removePhotoBtn" class="photo-remove" aria-label="사진 제거">✕</button>
         </div>
       </div>
-      <p class="muted">사진은 긴 변 1,600px 이하로 자동 압축해 이 기기에 저장합니다. 사진과 GPS 좌표는 같은 관찰 기록으로 연결됩니다.</p>
+      <p class="muted">사진은 긴 변 1,600px 이하로 자동 압축합니다. 사진과 GPS 좌표는 같은 관찰 기록으로 연결됩니다.</p>
     </div>
 
     <div class="form-group">
@@ -1624,26 +1624,9 @@ svg.leaflet-image-layer.leaflet-interactive path {
       <button class="icon-btn" id="closeSettingsModal">✕</button>
     </div>
 
-    <div id="teacherAuthPanel" class="teacher-lock">
-      <div id="teacherAuthTitle" style="font-weight:900;margin-bottom:8px">교사 PIN 확인</div>
-      <p id="teacherAuthGuide" class="muted">교사용 설정을 열려면 PIN을 입력하세요.</p>
-      <div class="form-group">
-        <label for="teacherPinInput">교사 PIN</label>
-        <input id="teacherPinInput" type="password" inputmode="numeric" maxlength="8"
-          placeholder="4~8자리 숫자" autocomplete="off" />
-      </div>
-      <div id="teacherPinConfirmWrap" class="form-group hidden">
-        <label for="teacherPinConfirm">PIN 확인</label>
-        <input id="teacherPinConfirm" type="password" inputmode="numeric" maxlength="8"
-          placeholder="PIN을 한 번 더 입력하세요" autocomplete="off" />
-      </div>
-      <button class="btn primary block" id="teacherAuthBtn">확인</button>
-    </div>
-
-    <div id="zoneManagerPanel" class="hidden">
+    <div id="zoneManagerPanel">
       <div class="teacher-note">
-        이 단일 HTML 단계의 수정 내용은 <b>현재 브라우저에만 저장</b>됩니다.
-        여러 학생의 휴대폰에 동일하게 반영하려면 추후 Supabase의 공통 설정 테이블과 연결해야 합니다.
+        조사 구간 설정은 주 교사가 저장하면 모든 승인된 회원에게 공통으로 적용됩니다.
       </div>
 
       <div class="form-group" style="margin-top:14px">
@@ -1653,14 +1636,6 @@ svg.leaflet-image-layer.leaflet-interactive path {
       </div>
 
       <button class="btn secondary block" id="addZoneBtn">＋ 조사 구간 추가</button>
-
-      <div class="divider"></div>
-
-      <div class="form-group">
-        <label for="newTeacherPin">교사 PIN 변경</label>
-        <input id="newTeacherPin" type="password" inputmode="numeric" maxlength="8"
-          placeholder="변경하지 않으면 비워 두세요" autocomplete="off" />
-      </div>
 
       <button class="btn primary block" id="saveSettingsBtn">구간 목록 저장</button>
     </div>
@@ -1691,7 +1666,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
     </div>
     <div class="form-group">
       <label for="studentCodeInput">학생 아이디 또는 인증 코드</label>
-      <input id="studentCodeInput" type="text" placeholder="Supabase 연결 후 로그인 정보로 전환됩니다" autocomplete="off" />
+      <input id="studentCodeInput" type="text" placeholder="로그인 아이디 또는 인증 코드" autocomplete="off" />
     </div>
     <div class="form-group">
       <label for="studentMemoInput">메모</label>
@@ -1805,15 +1780,13 @@ svg.leaflet-image-layer.leaflet-interactive path {
   ];
 
   let settings = normalizeSettings(loadJson(STORAGE.settings, {
-    zones: defaultZones,
-    teacherPin: ""
+    zones: defaultZones
   }));
   let teacherStudents = loadJson(STORAGE.students,[]);
   let teacherHistoryCache = [];
   let currentUser = loadJson(STORAGE.auth,null);
   let recoveryMode = false;
   let signupInProgress = false;
-  let teacherUnlocked = false;
   let currentSurvey = loadJson(STORAGE.draft, null);
   let routeWatchId = null;
   let timerId = null;
@@ -1999,7 +1972,6 @@ svg.leaflet-image-layer.leaflet-interactive path {
     if(!zones.length) zones = [...defaultZones];
     return {
       zones,
-      teacherPin: String(source.teacherPin || "")
     };
   }
 
@@ -2093,6 +2065,24 @@ svg.leaflet-image-layer.leaflet-interactive path {
     updateZoneSummary();
   }
 
+  async function loadSharedSettings(){
+    if(!supabaseClient || !currentUser?.authId) return;
+    const {data,error} = await supabaseClient
+      .from("survey_settings")
+      .select("zones")
+      .eq("id","default")
+      .maybeSingle();
+    if(error){
+      console.warn("공통 조사 구간을 불러오지 못했습니다.",error);
+      return;
+    }
+    if(Array.isArray(data?.zones) && data.zones.length){
+      settings = normalizeSettings({zones:data.zones});
+      saveJson(STORAGE.settings,settings);
+      renderZoneSettings();
+    }
+  }
+
   function renderStudentZoneSelect(){
     const select = $("surveyZoneSelect");
     if(!select) return;
@@ -2162,52 +2152,8 @@ svg.leaflet-image-layer.leaflet-interactive path {
   }
 
   function openTeacherSettings(){
-    if(teacherUnlocked && $("teacherView").classList.contains("hidden")){
-      showView("teacher");
-      return;
-    }
     $("settingsModal").classList.remove("hidden");
-    $("teacherPinInput").value = "";
-    $("teacherPinConfirm").value = "";
-    $("newTeacherPin").value = "";
-    $("zoneManagerPanel").classList.toggle("hidden", !teacherUnlocked);
-    $("teacherAuthPanel").classList.toggle("hidden", teacherUnlocked);
-
-    const firstSetup = !settings.teacherPin;
-    $("teacherAuthTitle").textContent = firstSetup ? "교사 PIN 최초 설정" : "교사 PIN 확인";
-    $("teacherAuthGuide").textContent = firstSetup
-      ? "학생이 구간 목록을 임의로 수정하지 못하도록 4~8자리 숫자 PIN을 설정하세요."
-      : "교사용 조사 구간 설정을 열려면 PIN을 입력하세요.";
-    $("teacherPinConfirmWrap").classList.toggle("hidden", !firstSetup);
-    $("teacherAuthBtn").textContent = firstSetup ? "PIN 설정 후 열기" : "교사용 설정 열기";
-  }
-
-  function authenticateTeacher(){
-    const pin = $("teacherPinInput").value.trim();
-    if(!/^\d{4,8}$/.test(pin)){
-      alert("PIN은 4~8자리 숫자로 입력하세요.");
-      return;
-    }
-
-    if(!settings.teacherPin){
-      const confirmPin = $("teacherPinConfirm").value.trim();
-      if(pin !== confirmPin){
-        alert("PIN 확인 값이 일치하지 않습니다.");
-        return;
-      }
-      settings.teacherPin = pin;
-      saveJson(STORAGE.settings,settings);
-    }else if(pin !== settings.teacherPin){
-      alert("교사 PIN이 올바르지 않습니다.");
-      return;
-    }
-
-    $("teacherAuthPanel").classList.add("hidden");
-    $("zoneManagerPanel").classList.remove("hidden");
-    teacherUnlocked = true;
     renderZoneEditor();
-    $("settingsModal").classList.add("hidden");
-    showView("teacher");
   }
 
   async function fetchWeather(lat,lon){
@@ -3940,6 +3886,31 @@ svg.leaflet-image-layer.leaflet-interactive path {
     setTimeout(()=>URL.revokeObjectURL(url),1000);
   }
 
+  function downloadExcelWorkbook(filename,rows){
+    const tableRows = rows.map((row,index)=>{
+      const tag = index === 0 ? "th" : "td";
+      return `<tr>${row.map(cell=>`<${tag}>${escapeHtml(cell)}</${tag}>`).join("")}</tr>`;
+    }).join("");
+    const table = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-16"><style>td,th{border:1px solid #d7e0da;padding:5px;mso-number-format:'\\@';}th{background:#e8f3ed;font-weight:bold;}</style></head><body><table>${tableRows}</table></body></html>`;
+    const bytes = new Uint8Array(2 + table.length * 2);
+    bytes[0] = 0xff;
+    bytes[1] = 0xfe;
+    for(let i=0;i<table.length;i++){
+      const code = table.charCodeAt(i);
+      bytes[2 + i*2] = code & 0xff;
+      bytes[3 + i*2] = code >> 8;
+    }
+    const blob = new Blob([bytes],{type:"application/vnd.ms-excel"});
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+  }
+
   function csvCell(value){
     const text = String(value ?? "").replace(/\r?\n/g," ");
     return /[",]/.test(text) ? `"${text.replace(/"/g,'""')}"` : text;
@@ -3979,8 +3950,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
         observation.note || ""
       ]));
     });
-    const csv = "\uFEFFsep=,\r\n" + rows.map(row=>row.map(csvCell).join(",")).join("\r\n");
-    downloadTextFile(`학교숲_조사기록_${new Date().toISOString().slice(0,10)}.csv`,csv,"text/csv;charset=utf-8");
+    downloadExcelWorkbook(`학교숲_조사기록_${new Date().toISOString().slice(0,10)}.xls`,rows);
   }
 
   async function exportTeacherPdf(){
@@ -4393,7 +4363,6 @@ svg.leaflet-image-layer.leaflet-interactive path {
   async function applySupabaseSession(session){
     if(!session?.user){
       currentUser = null;
-      teacherUnlocked = false;
       localStorage.removeItem(STORAGE.auth);
       showLoginPanel();
       showView("auth");
@@ -4426,7 +4395,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
       loggedInAt:new Date().toISOString()
     };
     saveJson(STORAGE.auth,currentUser);
-    teacherUnlocked = profile.role !== "student";
+    await loadSharedSettings();
     if(profile.role === "student"){
       $("participant").value = profile.name || profile.login_id || "";
       localStorage.setItem(STORAGE.participant,$("participant").value);
@@ -4469,12 +4438,20 @@ svg.leaflet-image-layer.leaflet-interactive path {
       alert("Supabase 연결 설정을 불러오지 못했습니다.");
       return;
     }
-    const {data,error} = await supabaseClient.auth.signInWithPassword({
-      email:id,
-      password
+    const {data,error} = await supabaseClient.functions.invoke("sign-in-with-login-id",{
+      body:{login_id:id,password}
     });
     if(error){
       alert(`로그인하지 못했습니다. ${error.message}`);
+      return;
+    }
+    if(!data?.session){
+      alert("로그인 세션을 받지 못했습니다. 관리자에게 문의하세요.");
+      return;
+    }
+    const {error:sessionError} = await supabaseClient.auth.setSession(data.session);
+    if(sessionError){
+      alert(`로그인 세션을 저장하지 못했습니다. ${sessionError.message}`);
       return;
     }
     await applySupabaseSession(data.session);
@@ -4551,7 +4528,6 @@ svg.leaflet-image-layer.leaflet-interactive path {
   async function logout(){
     if(supabaseClient) await supabaseClient.auth.signOut();
     currentUser = null;
-    teacherUnlocked = false;
     localStorage.removeItem(STORAGE.auth);
     showLoginPanel();
     showView("auth");
@@ -4567,6 +4543,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
     document.querySelectorAll(".nav-btn").forEach(b=>b.classList.toggle("active",b.dataset.view===view));
     renderAuthSession();
     if(view === "auth") return;
+    if(view === "home" && currentUser?.role === "student") loadSharedSettings();
 
     if(view==="survey"){
       if(currentSurvey){
@@ -4598,7 +4575,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
     }[m]));
   }
 
-  function saveSettings(){
+  async function saveSettings(){
     syncZoneInputs();
     settings.zones = settings.zones.map(z=>String(z).trim()).filter(Boolean);
 
@@ -4617,16 +4594,19 @@ svg.leaflet-image-layer.leaflet-interactive path {
       return;
     }
 
-    const newPin = $("newTeacherPin").value.trim();
-    if(newPin){
-      if(!/^\d{4,8}$/.test(newPin)){
-        alert("새 PIN은 4~8자리 숫자로 입력하세요.");
+    saveJson(STORAGE.settings,settings);
+    if(supabaseClient && currentUser?.role === "owner_teacher"){
+      const {error} = await supabaseClient.from("survey_settings").upsert({
+        id:"default",
+        zones:settings.zones,
+        updated_by:currentUser.authId,
+        updated_at:new Date().toISOString()
+      },{onConflict:"id"});
+      if(error){
+        alert(`공통 조사 구간을 저장하지 못했습니다. ${error.message}`);
         return;
       }
-      settings.teacherPin = newPin;
     }
-
-    saveJson(STORAGE.settings,settings);
     renderZoneSettings();
     if(!$('teacherView').classList.contains('hidden')) renderTeacherDashboard();
     $("settingsModal").classList.add("hidden");
@@ -4684,7 +4664,6 @@ svg.leaflet-image-layer.leaflet-interactive path {
   $("saveStudentBtn").addEventListener("click",saveTeacherStudent);
   $("closeSettingsModal").addEventListener("click",()=>$("settingsModal").classList.add("hidden"));
   $("saveSettingsBtn").addEventListener("click",saveSettings);
-  $("teacherAuthBtn").addEventListener("click",authenticateTeacher);
   $("addZoneBtn").addEventListener("click",()=>{
     syncZoneInputs();
     settings.zones.push(`새 조사 구간 ${settings.zones.length+1}`);
@@ -4725,12 +4704,6 @@ svg.leaflet-image-layer.leaflet-interactive path {
   });
   document.querySelectorAll(".nav-btn").forEach(btn=>{
     btn.addEventListener("click",()=>showView(btn.dataset.view));
-  });
-  $("teacherPinInput").addEventListener("keydown",e=>{
-    if(e.key === "Enter") authenticateTeacher();
-  });
-  $("teacherPinConfirm").addEventListener("keydown",e=>{
-    if(e.key === "Enter") authenticateTeacher();
   });
   window.addEventListener("resize",()=>{
     if(routeMap) routeMap.invalidateSize({pan:false});
