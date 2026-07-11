@@ -711,6 +711,14 @@ svg.leaflet-image-layer.leaflet-interactive path {
     }
     .header-tools{display:flex;align-items:center;gap:8px;min-width:0}
     .teacher-name{padding-left:8px;border-left:1px solid var(--line);font-size:11px;font-weight:900;color:#2f6b4f;white-space:nowrap}
+    .auth-view{max-width:440px;margin:28px auto 0}
+    .auth-card{padding:24px;background:linear-gradient(145deg,#f8fbf8,#eef6f0);border:1px solid #cfe1d3}
+    .auth-brand{display:flex;align-items:center;gap:10px;margin-bottom:18px}
+    .auth-brand img{width:46px;height:46px;object-fit:contain}
+    .auth-brand-title{font-size:20px;font-weight:900;color:var(--primary-2)}
+    .auth-note{padding:10px 12px;border-radius:12px;background:#fff8e8;color:#755000;font-size:11px;line-height:1.5}
+    .auth-switch{text-align:center;margin-top:12px}
+    .auth-switch button{border:0;background:transparent;color:var(--primary-2);font-size:12px;font-weight:900}
     main{padding:16px}
     .banner{
       border:1px solid #f1c6c1;background:#fff2f0;color:#7a271a;
@@ -1113,13 +1121,63 @@ svg.leaflet-image-layer.leaflet-interactive path {
       </div>
     </div>
     <div class="header-tools">
-      <span class="teacher-name">숲선생님 박은경</span>
+      <span id="teacher-name" class="teacher-name">숲선생님 박은경</span>
+      <button class="icon-btn hidden" id="logoutBtn" aria-label="로그아웃">↪</button>
       <button class="icon-btn" id="settingsBtn" aria-label="설정">⚙️</button>
     </div>
   </header>
 
   <main>
     <div id="secureBanner" class="banner hidden"></div>
+
+    <section id="authView" class="auth-view">
+      <div class="card auth-card">
+        <div class="auth-brand">
+          <img src="assets/muwidang-mark.png" alt="무위당 마크" />
+          <div class="auth-brand-title">학교숲 시민과학자</div>
+        </div>
+
+        <div id="loginPanel">
+          <h2>로그인</h2>
+          <div class="form-group">
+            <label for="authId">아이디</label>
+            <input id="authId" type="text" placeholder="아이디를 입력하세요" autocomplete="username" />
+          </div>
+          <div class="form-group">
+            <label for="authPassword">비밀번호</label>
+            <input id="authPassword" type="password" placeholder="비밀번호를 입력하세요" autocomplete="current-password" />
+          </div>
+          <button class="btn primary block" id="localLoginBtn">로그인</button>
+          <div class="auth-switch"><button type="button" id="showSignupBtn">학생·협력 교사 가입 신청</button></div>
+          <div class="auth-note" style="margin-top:14px">현재는 화면 흐름 확인을 위한 로컬 테스트 로그인입니다. `teacher`는 주 교사, `coteacher`는 협력 교사, 그 외 아이디는 학생으로 이동합니다. 실제 역할과 비밀번호는 Supabase 연결 후 적용됩니다.</div>
+        </div>
+
+        <div id="signupPanel" class="hidden">
+          <h2>가입 신청</h2>
+          <div class="form-group">
+            <label for="signupRole">신청 유형</label>
+            <select id="signupRole">
+              <option value="student">학생</option>
+              <option value="collaborating_teacher">협력 교사</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="signupName">이름</label>
+            <input id="signupName" type="text" placeholder="이름을 입력하세요" autocomplete="name" />
+          </div>
+          <div class="form-group">
+            <label for="signupGroup">학년·반 또는 소속</label>
+            <input id="signupGroup" type="text" placeholder="예: 5학년 2반 / 학교 교사" />
+          </div>
+          <div class="form-group">
+            <label for="signupId">희망 아이디</label>
+            <input id="signupId" type="text" placeholder="사용할 아이디를 입력하세요" autocomplete="username" />
+          </div>
+          <button class="btn primary block" id="submitSignupBtn">가입 신청 제출</button>
+          <div class="auth-switch"><button type="button" id="showLoginBtn">로그인으로 돌아가기</button></div>
+        </div>
+      </div>
+    </section>
 
     <section id="homeView">
       <div class="card">
@@ -1655,6 +1713,8 @@ svg.leaflet-image-layer.leaflet-interactive path {
   const STORAGE = {
     settings: "egretSurveySettings_v1",
     students: "egretSurveyStudents_v1",
+    auth: "egretSurveyAuth_v1",
+    applications: "egretSurveyApplications_v1",
     draft: "egretSurveyDraft_v1",
     history: "egretSurveyHistory_v1",
     participant: "egretSurveyParticipant_v1"
@@ -1674,6 +1734,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
     teacherPin: ""
   }));
   let teacherStudents = loadJson(STORAGE.students,[]);
+  let currentUser = loadJson(STORAGE.auth,null);
   let teacherUnlocked = false;
   let currentSurvey = loadJson(STORAGE.draft, null);
   let routeWatchId = null;
@@ -3772,12 +3833,103 @@ svg.leaflet-image-layer.leaflet-interactive path {
     renderHistory();
   };
 
+  function renderAuthSession(){
+    const loggedIn = Boolean(currentUser);
+    const isStudent = currentUser?.role === "student";
+    const isOwner = currentUser?.role === "owner_teacher";
+    $("settingsBtn").classList.toggle("hidden",!loggedIn || isStudent);
+    $("logoutBtn").classList.toggle("hidden",!loggedIn);
+    $("teacher-name").textContent = isOwner
+      ? "숲선생님 박은경"
+      : currentUser?.role === "collaborating_teacher"
+        ? `${currentUser.name} · 협력 교사`
+        : currentUser?.name || "";
+    $("teacher-name").classList.toggle("hidden",!loggedIn);
+    $("openTeacherSettingsBtn").classList.toggle("hidden",!isOwner);
+    document.querySelector('[data-teacher-tab="students"]')?.classList.toggle("hidden",!isOwner);
+  }
+
+  function showLoginPanel(){
+    $("loginPanel").classList.remove("hidden");
+    $("signupPanel").classList.add("hidden");
+  }
+
+  function showSignupPanel(){
+    $("loginPanel").classList.add("hidden");
+    $("signupPanel").classList.remove("hidden");
+  }
+
+  function localLogin(){
+    const id = $("authId").value.trim();
+    const password = $("authPassword").value.trim();
+    if(!id || !password){
+      alert("아이디와 비밀번호를 입력하세요.");
+      return;
+    }
+    const demoRoleById = {
+      teacher:"owner_teacher",
+      owner:"owner_teacher",
+      coteacher:"collaborating_teacher",
+      "협력교사":"collaborating_teacher"
+    };
+    const role = demoRoleById[id.toLowerCase()] || "student";
+    currentUser = {
+      id,
+      name:id,
+      role,
+      loggedInAt:new Date().toISOString()
+    };
+    saveJson(STORAGE.auth,currentUser);
+    teacherUnlocked = role !== "student";
+    if(role === "student"){
+      $("participant").value = id;
+      localStorage.setItem(STORAGE.participant,id);
+      renderZoneSettings();
+      showView("home");
+    }else{
+      showView("teacher");
+    }
+  }
+
+  function submitSignup(){
+    const role = $("signupRole").value;
+    const name = $("signupName").value.trim();
+    const group = $("signupGroup").value.trim();
+    const loginId = $("signupId").value.trim();
+    if(!name || !loginId){
+      alert("이름과 희망 아이디를 입력하세요.");
+      return;
+    }
+    const applications = loadJson(STORAGE.applications,[]);
+    applications.push({
+      id:crypto.randomUUID ? crypto.randomUUID() : `application-${Date.now()}`,
+      role,name,group,loginId,status:"pending",createdAt:new Date().toISOString()
+    });
+    saveJson(STORAGE.applications,applications);
+    alert("가입 신청이 저장되었습니다. 주 교사 승인 후 이용할 수 있습니다.");
+    $("signupName").value = "";
+    $("signupGroup").value = "";
+    $("signupId").value = "";
+    showLoginPanel();
+  }
+
+  function logout(){
+    currentUser = null;
+    teacherUnlocked = false;
+    localStorage.removeItem(STORAGE.auth);
+    showLoginPanel();
+    showView("auth");
+  }
+
   function showView(view){
+    $("authView").classList.toggle("hidden",view!=="auth");
     $("homeView").classList.toggle("hidden",view!=="home");
     $("surveyView").classList.toggle("hidden",view!=="survey");
     $("historyView").classList.toggle("hidden",view!=="history");
     $("teacherView").classList.toggle("hidden",view!=="teacher");
     document.querySelectorAll(".nav-btn").forEach(b=>b.classList.toggle("active",b.dataset.view===view));
+    renderAuthSession();
+    if(view === "auth") return;
 
     if(view==="survey"){
       if(currentSurvey){
@@ -3845,6 +3997,11 @@ svg.leaflet-image-layer.leaflet-interactive path {
   }
 
   // 이벤트
+  $("localLoginBtn").addEventListener("click",localLogin);
+  $("showSignupBtn").addEventListener("click",showSignupPanel);
+  $("showLoginBtn").addEventListener("click",showLoginPanel);
+  $("submitSignupBtn").addEventListener("click",submitSignup);
+  $("logoutBtn").addEventListener("click",logout);
   $("startSurveyBtn").addEventListener("click",startSurvey);
   $("addObservationBtn").addEventListener("click",openObservationModal);
   $("finishSurveyBtn").addEventListener("click",openFinishModal);
@@ -3943,7 +4100,14 @@ svg.leaflet-image-layer.leaflet-interactive path {
   checkSecureContext();
   renderHistory();
 
-  if(currentSurvey && isDraftSurvey(currentSurvey)){
+  renderAuthSession();
+  if(currentUser){
+    showView(currentUser.role === "student" ? "home" : "teacher");
+  }else{
+    showView("auth");
+  }
+
+  if(currentUser && currentUser.role === "student" && currentSurvey && isDraftSurvey(currentSurvey)){
     if(confirm("작성 중인 조사 기록이 있습니다. 이어서 진행할까요?")){
       enterSurveyMode();
     }else{
