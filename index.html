@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#176b4d" />
-  <title>학교숲 시민과학자</title>
+  <title>학교숲 시민과학자 v10</title>
 <style>
 /* Leaflet 1.9.4 - 로컬 내장 */
 /* required styles */
@@ -838,6 +838,12 @@ svg.leaflet-image-layer.leaflet-interactive path {
     }
     #routeMap .leaflet-pane,
     #routeMap .leaflet-control{pointer-events:auto}
+    #routeMap img.leaflet-tile{
+      mix-blend-mode:normal!important;
+      opacity:1!important;
+      visibility:visible!important;
+      filter:none!important
+    }
     #routeMap .leaflet-control-container{position:relative;z-index:1000}
     #routeMap .leaflet-control-zoom a{
       width:40px;height:40px;line-height:40px;font-size:24px
@@ -890,10 +896,18 @@ svg.leaflet-image-layer.leaflet-interactive path {
     }
     .obs-mini-map-wrap{position:relative}
     .obs-mini-map{
-      position:relative;isolation:isolate;overflow:hidden;
-      width:100%;height:210px;background:#e9efeb;touch-action:none
+      position:relative;overflow:hidden;
+      width:100%;height:210px;background:#dfe7e2;touch-action:none
     }
-    .obs-mini-map .leaflet-map-pane{z-index:1}
+    .obs-mini-map img.leaflet-tile{
+      mix-blend-mode:normal!important;
+      opacity:1!important;
+      visibility:visible!important;
+      filter:none!important
+    }
+    .obs-mini-map .leaflet-tile-container{
+      opacity:1!important
+    }
     .obs-mini-map .leaflet-tile-pane{z-index:200}
     .obs-mini-map .leaflet-overlay-pane{z-index:400}
     .obs-mini-map .leaflet-shadow-pane{z-index:500}
@@ -944,7 +958,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
       <div class="logo">鳥</div>
       <div>
         <h1>학교숲 시민과학자</h1>
-        <div class="sub">모바일 생태 조사 기록 · v9</div>
+        <div class="sub">모바일 생태 조사 기록 · v10</div>
       </div>
     </div>
     <button class="icon-btn" id="settingsBtn" aria-label="설정">⚙️</button>
@@ -2010,7 +2024,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
 
         const statusEl = $(`obsMapStatus-${idx}`);
         let tileErrorCount = 0;
-        const tileLayer = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{
+        const tileLayer = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{
           maxZoom:19,
           minZoom:3,
           keepBuffer:2,
@@ -2018,6 +2032,11 @@ svg.leaflet-image-layer.leaflet-interactive path {
           attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         })
         .on("load",()=>{
+          el.querySelectorAll("img.leaflet-tile").forEach(tile=>{
+            tile.style.mixBlendMode = "normal";
+            tile.style.visibility = "visible";
+            tile.style.opacity = "1";
+          });
           if(statusEl) statusEl.classList.add("hidden");
           requestAnimationFrame(()=>{
             miniMap.invalidateSize({pan:false});
@@ -2163,7 +2182,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
     L.control.zoom({position:"topright"}).addTo(routeMap);
 
     mapTileErrorCount = 0;
-    mapTileLayer = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{
+    mapTileLayer = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{
       maxZoom:19,
       minZoom:3,
       updateWhenIdle:false,
