@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#176b4d" />
-  <title>백로류 모니터링 조사일지 v5</title>
+  <title>백로류 모니터링 조사일지 v6</title>
 <style>
 /* Leaflet 1.9.4 - 로컬 내장 */
 /* required styles */
@@ -875,6 +875,20 @@ svg.leaflet-image-layer.leaflet-interactive path {
       width:100%;max-height:250px;object-fit:cover;border-radius:12px;margin-bottom:10px;
       background:#edf1ee
     }
+    .obs-map-shell{
+      margin-top:11px;border:1px solid var(--line);border-radius:13px;
+      overflow:hidden;background:#f6f9f7
+    }
+    .obs-map-title{
+      padding:8px 10px;border-bottom:1px solid var(--line);
+      font-size:12px;font-weight:800;color:var(--muted)
+    }
+    .obs-mini-map{
+      width:100%;height:210px;background:#e9efeb;touch-action:none
+    }
+    .obs-mini-map .leaflet-control-attribution{
+      font-size:8px!important;line-height:1.1!important
+    }
     .photo-status{margin-top:7px;min-height:18px}
     .print-only{display:none}
     @media (max-width:520px){
@@ -885,6 +899,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
       .zone-edit-row{grid-template-columns:1fr 38px 38px 38px}
       .mini-btn{height:40px}
       #routeMap,.map-message{height:300px;min-height:300px}
+      .obs-mini-map{height:190px}
     }
     @media print{
       body{background:white}
@@ -908,7 +923,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
       <div class="logo">鳥</div>
       <div>
         <h1>백로류 모니터링 조사일지</h1>
-        <div class="sub">모바일 현장 조사 기록 · 안정화 지도 v5</div>
+        <div class="sub">모바일 현장 조사 기록 · 관찰지도 v6</div>
       </div>
     </div>
     <button class="icon-btn" id="settingsBtn" aria-label="설정">⚙️</button>
@@ -1267,6 +1282,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
   let mapResizeObserver = null;
   let mapHasFit = false;
   let mapTileErrorCount = 0;
+  let observationMiniMaps = [];
   let pendingPhotoBlob = null;
   let pendingPhotoObjectUrl = null;
   const photoUrlCache = new Map();
@@ -1888,6 +1904,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
 
   function renderObservations(){
     if(!currentSurvey) return;
+    disposeObservationMiniMaps();
     const list = $("obsList");
     const obs = currentSurvey.observations || [];
     $("obsCountLabel").textContent = `${obs.length}건`;
@@ -1911,12 +1928,97 @@ svg.leaflet-image-layer.leaflet-interactive path {
           ${o.tags?.length ? `<div class="tiny">${o.tags.map(escapeHtml).join(" · ")}</div>` : ""}
           ${o.habitat ? escapeHtml(o.habitat) : ""}
         </div>
+        <div class="obs-map-shell">
+          <div class="obs-map-title">
+            기록 당시 지도 · 중심 ${Number(o.mapView?.centerLat ?? o.lat).toFixed(6)},
+            ${Number(o.mapView?.centerLon ?? o.lon).toFixed(6)}
+            · 확대 ${Number(o.mapView?.zoom ?? 18)}
+          </div>
+          <div id="obsMap-${idx}" class="obs-mini-map" data-observation-index="${idx}"
+            aria-label="${escapeHtml(o.species)} 관찰 위치 지도"></div>
+        </div>
         <div class="btn-row no-print" style="margin-top:10px">
           <button class="btn ghost" onclick="window.__deleteObservation(${idx})">삭제</button>
         </div>
       </article>
     `).join("");
     hydrateObservationPhotos();
+    hydrateObservationMaps();
+  }
+
+  function disposeObservationMiniMaps(){
+    for(const map of observationMiniMaps){
+      try{ map.remove(); }catch(e){}
+    }
+    observationMiniMaps = [];
+  }
+
+  function hydrateObservationMaps(){
+    if(typeof L === "undefined" || !currentSurvey) return;
+    const elements = document.querySelectorAll(".obs-mini-map[data-observation-index]");
+
+    requestAnimationFrame(()=>{
+      elements.forEach(el=>{
+        const idx = Number(el.dataset.observationIndex);
+        const o = currentSurvey.observations?.[idx];
+        if(!o || !Number.isFinite(Number(o.lat)) || !Number.isFinite(Number(o.lon))) return;
+
+        const center = [
+          Number(o.mapView?.centerLat ?? o.lat),
+          Number(o.mapView?.centerLon ?? o.lon)
+        ];
+        const zoom = Math.max(3,Math.min(19,Number(o.mapView?.zoom ?? 18)));
+
+        const miniMap = L.map(el,{
+          zoomControl:false,
+          attributionControl:true,
+          dragging:false,
+          touchZoom:false,
+          scrollWheelZoom:false,
+          doubleClickZoom:false,
+          boxZoom:false,
+          keyboard:false,
+          tap:false,
+          preferCanvas:true
+        }).setView(center,zoom);
+
+        L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{
+          maxZoom:19,
+          minZoom:3,
+          keepBuffer:1,
+          crossOrigin:true,
+          attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        }).addTo(miniMap);
+
+        const routeCount = Number.isInteger(Number(o.routePointCount))
+          ? Number(o.routePointCount)
+          : (currentSurvey.route || []).length;
+        const routeAtObservation = (currentSurvey.route || [])
+          .slice(0,Math.max(1,routeCount))
+          .map(p=>[p.lat,p.lon]);
+
+        if(routeAtObservation.length >= 2){
+          L.polyline(routeAtObservation,{
+            color:"#176b4d",weight:4,opacity:.85,interactive:false
+          }).addTo(miniMap);
+        }
+
+        L.circle([o.lat,o.lon],{
+          radius:Math.max(1,Number(o.accuracy || 1)),
+          color:"#d94841",weight:1,fillColor:"#d94841",fillOpacity:.13,
+          interactive:false
+        }).addTo(miniMap);
+
+        L.circleMarker([o.lat,o.lon],{
+          radius:8,color:"#ffffff",weight:3,
+          fillColor:"#d94841",fillOpacity:1,
+          interactive:false
+        }).addTo(miniMap);
+
+        setTimeout(()=>miniMap.invalidateSize({pan:false}),80);
+        observationMiniMaps.push(miniMap);
+      });
+    });
   }
 
   async function hydrateObservationPhotos(){
@@ -2064,6 +2166,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
   }
 
   function resetMapLayers(){
+    disposeObservationMiniMaps();
     if(mapResizeObserver){
       mapResizeObserver.disconnect();
       mapResizeObserver = null;
@@ -2293,6 +2396,13 @@ svg.leaflet-image-layer.leaflet-interactive path {
         });
       }
 
+      const currentMapCenter = routeMap?.getCenter?.();
+      const recordedMapView = {
+        centerLat:Number(currentMapCenter?.lat ?? measuredObservationPosition.lat),
+        centerLon:Number(currentMapCenter?.lng ?? measuredObservationPosition.lon),
+        zoom:Number(routeMap?.getZoom?.() ?? 18)
+      };
+
       currentSurvey.observations.push({
         id:observationId,
         species,
@@ -2303,7 +2413,9 @@ svg.leaflet-image-layer.leaflet-interactive path {
         lon:measuredObservationPosition.lon,
         accuracy:measuredObservationPosition.accuracy,
         time:new Date().toISOString(),
-        photoId
+        photoId,
+        mapView:recordedMapView,
+        routePointCount:(currentSurvey.route || []).length
       });
       saveJson(STORAGE.draft,currentSurvey);
       closeObservationModal();
@@ -2400,7 +2512,8 @@ svg.leaflet-image-layer.leaflet-interactive path {
     if(!history.length){alert("내보낼 기록이 없습니다.");return}
     const rows = [[
       "조사일자","참여자","조사구간","시작시간","종료시간","날씨","종명","개체수",
-      "출현지역·서식특성","발견시각","위도","경도","GPS정확도(m)","사진여부","사진ID"
+      "출현지역·서식특성","발견시각","위도","경도","GPS정확도(m)","사진여부","사진ID",
+      "지도중심위도","지도중심경도","지도확대수준","기록시점경로좌표수"
     ]];
     history.forEach(s=>{
       (s.observations||[]).forEach(o=>{
@@ -2408,7 +2521,9 @@ svg.leaflet-image-layer.leaflet-interactive path {
           s.date,s.participant,s.zone?.name||"",
           formatTime(s.startTime,true),formatTime(s.endTime,true),weatherText(s.weather),
           o.species,o.count,[...(o.tags||[]),o.habitat||""].filter(Boolean).join(" / "),
-          formatTime(o.time,true),o.lat,o.lon,o.accuracy,o.photoId ? "있음" : "없음",o.photoId || ""
+          formatTime(o.time,true),o.lat,o.lon,o.accuracy,o.photoId ? "있음" : "없음",o.photoId || "",
+          o.mapView?.centerLat ?? o.lat,o.mapView?.centerLon ?? o.lon,o.mapView?.zoom ?? 18,
+          o.routePointCount ?? ""
         ]);
       });
     });
