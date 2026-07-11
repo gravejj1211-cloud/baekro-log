@@ -1223,6 +1223,10 @@ svg.leaflet-image-layer.leaflet-interactive path {
             <input id="signupId" type="text" placeholder="사용할 아이디를 입력하세요" autocomplete="username" />
           </div>
           <div class="form-group">
+            <label for="signupEmail">이메일</label>
+            <input id="signupEmail" type="email" placeholder="로그인에 사용할 이메일을 입력하세요" autocomplete="email" />
+          </div>
+          <div class="form-group">
             <label for="signupPassword">비밀번호</label>
             <input id="signupPassword" type="password" placeholder="비밀번호를 입력하세요" autocomplete="new-password" />
           </div>
@@ -1453,8 +1457,8 @@ svg.leaflet-image-layer.leaflet-interactive path {
           </div>
           <p class="muted">학생별 조사 횟수와 관찰 기록 현황을 확인합니다. 학생 계정과 전체 학생 데이터는 Supabase 연결 후 관리할 수 있습니다.</p>
           <div class="teacher-student-actions" style="margin:12px 0">
-            <button class="btn secondary" type="button" disabled>가입 신청 0</button>
-            <button class="btn secondary" type="button" disabled>협력 교사 신청 0</button>
+            <button class="btn secondary" id="studentApplicationsSummary" type="button" disabled>학생 신청 0</button>
+            <button class="btn secondary" id="teacherApplicationsSummary" type="button" disabled>협력 교사 신청 0</button>
           </div>
           <div id="teacherStudentList" class="teacher-student-list">
             <div class="muted">확인할 학생 기록이 없습니다.</div>
@@ -1808,6 +1812,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
   let teacherHistoryCache = [];
   let currentUser = loadJson(STORAGE.auth,null);
   let recoveryMode = false;
+  let signupInProgress = false;
   let teacherUnlocked = false;
   let currentSurvey = loadJson(STORAGE.draft, null);
   let routeWatchId = null;
@@ -3803,7 +3808,8 @@ svg.leaflet-image-layer.leaflet-interactive path {
     const list = $("teacherHistoryList");
     if(!filteredHistory.length){
       list.innerHTML = `<div class="muted">저장된 조사 기록이 없습니다.</div>`;
-      renderTeacherStudents(history);
+      await renderTeacherStudents(history);
+      renderTeacherFilterOptions(history);
       return;
     }
     list.innerHTML = filteredRecords.map(({survey,index})=>{
@@ -3827,7 +3833,8 @@ svg.leaflet-image-layer.leaflet-interactive path {
         </div>
       `;
     }).join("");
-    renderTeacherStudents(history);
+    await renderTeacherStudents(history);
+    renderTeacherFilterOptions(history);
   }
 
   function renderTeacherFilterOptions(history){
@@ -4018,8 +4025,29 @@ svg.leaflet-image-layer.leaflet-interactive path {
     reportWindow.focus();
   }
 
-  function renderTeacherStudents(history){
+  async function renderTeacherStudents(history){
     teacherStudents = Array.isArray(loadJson(STORAGE.students,[])) ? loadJson(STORAGE.students,[]) : [];
+    let applications = [];
+    if(supabaseClient && currentUser?.role === "owner_teacher"){
+      const [{data:profiles,error:profileError},{data:remoteApplications,error:applicationError}] = await Promise.all([
+        supabaseClient.from("profiles").select("id,login_id,name,role,class_name,approval_status").order("created_at",{ascending:true}),
+        supabaseClient.from("applications").select("id,login_id,name,email,class_name,requested_role,status,created_at").order("created_at",{ascending:true})
+      ]);
+      if(!profileError && Array.isArray(profiles)){
+        teacherStudents = profiles.map(profile=>({
+          id:profile.id,
+          name:profile.name || profile.login_id || "이름 없음",
+          group:profile.class_name || "",
+          role:profile.role,
+          loginCode:profile.login_id || "",
+          approvalStatus:profile.approval_status,
+          registered:true
+        }));
+      }
+      if(!applicationError && Array.isArray(remoteApplications)) applications = remoteApplications;
+    }
+    $("studentApplicationsSummary").textContent = `학생 신청 ${applications.filter(item=>item.requested_role === "student" && item.status === "pending").length}`;
+    $("teacherApplicationsSummary").textContent = `협력 교사 신청 ${applications.filter(item=>item.requested_role === "collaborating_teacher" && item.status === "pending").length}`;
     const surveys = [...history];
     if(currentSurvey && !surveys.some(s=>s.id && s.id === currentSurvey.id)){
       surveys.unshift(currentSurvey);
@@ -4070,14 +4098,17 @@ svg.leaflet-image-layer.leaflet-interactive path {
       <div class="teacher-student-item">
         <div class="teacher-student-head">
           <div class="teacher-student-name">${escapeHtml(student.name)}</div>
-          <span class="submission-badge">${student.registered ? teacherRoleLabel(student.role) : "계정 미등록"}</span>
+          <span class="submission-badge">${student.approvalStatus === "pending" ? "승인 대기" : student.registered ? teacherRoleLabel(student.role) : "계정 미등록"}</span>
         </div>
         <div class="teacher-student-meta">
           ${student.group ? `${escapeHtml(student.group)} · ` : ""}조사 ${student.surveys}회 · 관찰 기록 ${student.observations}건<br>
           최근 조사 · ${student.latestTime ? formatTime(student.latestTime,true) : "기록 없음"}
         </div>
         <div class="teacher-student-actions">
-          ${student.registered
+          ${student.approvalStatus === "pending"
+            ? `<button class="btn primary" onclick="window.__approveMember('${escapeHtml(student.id)}','${escapeHtml(student.role)}','${escapeHtml(student.loginCode || "")}')">승인</button>
+               <button class="btn danger" onclick="window.__rejectMember('${escapeHtml(student.id)}','${escapeHtml(student.loginCode || "")}')">거절</button>`
+            : student.registered
             ? `<button class="btn ghost" onclick="window.__openStudentEditor('${escapeHtml(student.id)}')">정보 수정</button>
                <button class="btn danger" onclick="window.__deleteStudent('${escapeHtml(student.id)}')">삭제</button>`
             : `<span class="tiny">조사 기록에 이름만 남은 사용자입니다.</span>`}
@@ -4085,6 +4116,42 @@ svg.leaflet-image-layer.leaflet-interactive path {
       </div>
     `).join("");
   }
+
+  window.__approveMember = async (profileId,role,loginId)=>{
+    if(!supabaseClient || currentUser?.role !== "owner_teacher") return;
+    if(!confirm("이 회원의 가입을 승인할까요?")) return;
+    const {error:profileError} = await supabaseClient.from("profiles")
+      .update({role:role === "collaborating_teacher" ? "collaborating_teacher" : "student",approval_status:"approved"})
+      .eq("id",profileId);
+    if(profileError){
+      alert(`회원 승인에 실패했습니다. ${profileError.message}`);
+      return;
+    }
+    if(loginId){
+      await supabaseClient.from("applications")
+        .update({status:"approved",reviewed_at:new Date().toISOString(),reviewed_by:currentUser.authId})
+        .eq("login_id",loginId).eq("status","pending");
+    }
+    renderTeacherDashboard();
+  };
+
+  window.__rejectMember = async (profileId,loginId)=>{
+    if(!supabaseClient || currentUser?.role !== "owner_teacher") return;
+    if(!confirm("이 회원의 가입 신청을 거절할까요?")) return;
+    const {error:profileError} = await supabaseClient.from("profiles")
+      .update({approval_status:"rejected"})
+      .eq("id",profileId);
+    if(profileError){
+      alert(`가입 신청 거절에 실패했습니다. ${profileError.message}`);
+      return;
+    }
+    if(loginId){
+      await supabaseClient.from("applications")
+        .update({status:"rejected",reviewed_at:new Date().toISOString(),reviewed_by:currentUser.authId})
+        .eq("login_id",loginId).eq("status","pending");
+    }
+    renderTeacherDashboard();
+  };
 
   function teacherRoleLabel(role){
     return role === "collaborating_teacher" ? "협력 교사" : "학생";
@@ -4339,8 +4406,8 @@ svg.leaflet-image-layer.leaflet-interactive path {
       if(event === "PASSWORD_RECOVERY"){
         showResetUpdatePanel();
       }else if(event === "SIGNED_IN" || event === "TOKEN_REFRESHED"){
-        if(!recoveryMode) setTimeout(()=>applySupabaseSession(session),0);
-      }else if(event === "SIGNED_OUT" && !recoveryMode){
+        if(!recoveryMode && !signupInProgress) setTimeout(()=>applySupabaseSession(session),0);
+      }else if(event === "SIGNED_OUT" && !recoveryMode && !signupInProgress){
         setTimeout(()=>applySupabaseSession(null),0);
       }
     });
@@ -4379,14 +4446,19 @@ svg.leaflet-image-layer.leaflet-interactive path {
     const name = $("signupName").value.trim();
     const group = $("signupGroup").value.trim();
     const loginId = $("signupId").value.trim();
+    const email = $("signupEmail").value.trim();
     const password = $("signupPassword").value;
     const passwordConfirm = $("signupPasswordConfirm").value;
-    if(!name || !loginId || !password || !passwordConfirm){
-      alert("이름, 희망 아이디, 비밀번호를 모두 입력하세요.");
+    if(!name || !loginId || !email || !password || !passwordConfirm){
+      alert("이름, 희망 아이디, 이메일, 비밀번호를 모두 입력하세요.");
       return;
     }
-    if(password.length < 4){
-      alert("비밀번호는 4자리 이상 입력하세요.");
+    if(!/^\\S+@\\S+\\.\\S+$/.test(email)){
+      alert("올바른 이메일 주소를 입력하세요.");
+      return;
+    }
+    if(password.length < 6){
+      alert("비밀번호는 6자리 이상 입력하세요.");
       return;
     }
     if(password !== passwordConfirm){
@@ -4397,21 +4469,41 @@ svg.leaflet-image-layer.leaflet-interactive path {
       alert("Supabase 연결 설정을 불러오지 못했습니다.");
       return;
     }
+    signupInProgress = true;
+    const {data:signUpData,error:signUpError} = await supabaseClient.auth.signUp({
+      email,
+      password,
+      options:{
+        data:{login_id:loginId,name,class_name:group},
+        emailRedirectTo:`${window.location.origin}${window.location.pathname}`
+      }
+    });
+    if(signUpError){
+      signupInProgress = false;
+      alert(`계정을 만들지 못했습니다. ${signUpError.message}`);
+      return;
+    }
+    if(signUpData.session) await supabaseClient.auth.signOut();
+
     const {error} = await supabaseClient.from("applications").insert({
       login_id:loginId,
       name,
+      email,
       class_name:group,
       requested_role:role,
       status:"pending"
     });
     if(error){
+      signupInProgress = false;
       alert(`가입 신청을 저장하지 못했습니다. ${error.message}`);
       return;
     }
+    signupInProgress = false;
     alert("가입 신청이 저장되었습니다. 주 교사 승인 후 이용할 수 있습니다.");
     $("signupName").value = "";
     $("signupGroup").value = "";
     $("signupId").value = "";
+    $("signupEmail").value = "";
     $("signupPassword").value = "";
     $("signupPasswordConfirm").value = "";
     showLoginPanel();
