@@ -2870,10 +2870,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
       try{
         let url = "";
         if(img.dataset.photoPath){
-          const {data,error} = await supabaseClient.storage
-            .from("observation-photos")
-            .createSignedUrl(img.dataset.photoPath,3600);
-          if(!error) url = data?.signedUrl || "";
+          url = await getSupabasePhotoUrl(img.dataset.photoPath);
         }else{
           url = await getPhotoUrl(img.dataset.photoId);
         }
@@ -3743,6 +3740,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
     return {
       id:row.id,
       participant:row.participant_name || "",
+      className:row.class_name || "",
       date:row.start_time ? formatDate(new Date(row.start_time)) : "",
       startTime:row.start_time,
       endTime:row.end_time,
@@ -3918,7 +3916,16 @@ svg.leaflet-image-layer.leaflet-interactive path {
   }
 
   function getTeacherExportRecords(){
-    return getTeacherFilteredHistory(loadJson(STORAGE.history,[]));
+    const source = teacherHistoryCache.length ? teacherHistoryCache : loadJson(STORAGE.history,[]);
+    return getTeacherFilteredHistory(source);
+  }
+
+  async function getSupabasePhotoUrl(path){
+    if(!path || !supabaseClient) return "";
+    const {data,error} = await supabaseClient.storage
+      .from("observation-photos")
+      .createSignedUrl(path,3600);
+    return error ? "" : data?.signedUrl || "";
   }
 
   function downloadTextFile(filename,content,mime="text/plain;charset=utf-8"){
@@ -3950,7 +3957,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
       const base = [
         survey.date || "",
         survey.participant || "",
-        groupByStudent.get(String(survey.participant || "").trim()) || "",
+        survey.className || groupByStudent.get(String(survey.participant || "").trim()) || "",
         survey.zone?.name || "",
         formatTime(survey.startTime,true),
         formatTime(survey.endTime,true),
@@ -3968,7 +3975,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
         observation.lat ?? "",
         observation.lon ?? "",
         observation.accuracy ?? "",
-        observation.photoId || "",
+        observation.photoPath || observation.photoId || "",
         observation.note || ""
       ]));
     });
@@ -3989,7 +3996,9 @@ svg.leaflet-image-layer.leaflet-interactive path {
     const filters = $("teacherFilterSummary").textContent || "전체 조건";
     const surveyHtml = await Promise.all(records.map(async ({survey})=>{
       const observations = await Promise.all((survey.observations || []).map(async observation=>{
-        const photoUrl = observation.photoId ? await getPhotoUrl(observation.photoId) : "";
+        const photoUrl = observation.photoPath
+          ? await getSupabasePhotoUrl(observation.photoPath)
+          : observation.photoId ? await getPhotoUrl(observation.photoId) : "";
         return `<div class="export-observation">
           <div class="export-observation-main">
             <strong>${escapeHtml(observation.species || "종 미상")}</strong>
@@ -4110,7 +4119,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
                <button class="btn danger" onclick="window.__rejectMember('${escapeHtml(student.id)}','${escapeHtml(student.loginCode || "")}')">거절</button>`
             : student.registered
             ? `<button class="btn ghost" onclick="window.__openStudentEditor('${escapeHtml(student.id)}')">정보 수정</button>
-               <button class="btn danger" onclick="window.__deleteStudent('${escapeHtml(student.id)}')">삭제</button>`
+               ${student.role === "owner_teacher" ? "" : `<button class="btn danger" onclick="window.__deleteStudent('${escapeHtml(student.id)}')">삭제</button>`}`
             : `<span class="tiny">조사 기록에 이름만 남은 사용자입니다.</span>`}
         </div>
       </div>
@@ -4172,16 +4181,29 @@ svg.leaflet-image-layer.leaflet-interactive path {
     setTimeout(()=>$('studentNameInput').focus(),100);
   };
 
-  window.__deleteStudent = (studentId)=>{
+  window.__deleteStudent = async (studentId)=>{
     const student = teacherStudents.find(item=>item.id === studentId);
     if(!student) return;
-    if(!confirm(`${student.name} 학생을 목록에서 삭제할까요? 기존 조사 기록은 보존됩니다.`)) return;
+    if(student.role === "owner_teacher"){
+      alert("주 교사 계정은 회원 목록에서 삭제할 수 없습니다.");
+      return;
+    }
+    if(!confirm(`${student.name} 회원을 목록에서 삭제할까요? 기존 조사 기록은 보존됩니다.`)) return;
+    if(supabaseClient && currentUser?.role === "owner_teacher" && student.registered){
+      const {error} = await supabaseClient.from("profiles").delete().eq("id",studentId);
+      if(error){
+        alert(`회원 삭제에 실패했습니다. ${error.message}`);
+        return;
+      }
+      renderTeacherDashboard();
+      return;
+    }
     teacherStudents = teacherStudents.filter(item=>item.id !== studentId);
     saveJson(STORAGE.students,teacherStudents);
     renderTeacherDashboard();
   };
 
-  function saveTeacherStudent(){
+  async function saveTeacherStudent(){
     const name = $("studentNameInput").value.trim();
     if(!name){
       alert("학생 이름을 입력하세요.");
@@ -4198,6 +4220,23 @@ svg.leaflet-image-layer.leaflet-interactive path {
       memo:$("studentMemoInput").value.trim(),
       createdAt:teacherStudents.find(item=>item.id === id)?.createdAt || new Date().toISOString()
     };
+    if(supabaseClient && currentUser?.role === "owner_teacher" && teacherStudents.some(item=>item.id === id && item.registered)){
+      const {error} = await supabaseClient.from("profiles").update({
+        name,
+        class_name:record.group,
+        role:record.role === "collaborating_teacher" ? "collaborating_teacher" : "student"
+      }).eq("id",id);
+      if(error){
+        alert(`회원 정보 수정에 실패했습니다. ${error.message}`);
+        return;
+      }
+      teacherStudents = teacherStudents.map(item=>item.id === id ? {...item,...record} : item);
+      saveJson(STORAGE.students,teacherStudents);
+      $("studentModal").classList.add("hidden");
+      await renderTeacherDashboard();
+      setTeacherTab("students");
+      return;
+    }
     const existingIndex = teacherStudents.findIndex(item=>item.id === id);
     if(existingIndex >= 0) teacherStudents[existingIndex] = record;
     else teacherStudents.push(record);
