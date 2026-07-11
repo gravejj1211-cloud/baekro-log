@@ -856,8 +856,9 @@ svg.leaflet-image-layer.leaflet-interactive path {
     }
     .obs{position:relative;isolation:isolate;overflow:hidden}
     .obs-card-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding-bottom:11px;border-bottom:1px solid #e2ebe5}
+    .obs-compact-grid{display:grid;grid-template-columns:minmax(76px,1.1fr) minmax(72px,.9fr) minmax(0,1.35fr) auto;align-items:center;gap:10px;width:100%;min-width:0}
     .obs-index{font-size:12px;font-weight:900;color:var(--primary-2);letter-spacing:.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .obs-time{margin-top:3px;font-size:12px;color:var(--muted)}
+    .obs-time{font-size:12px;color:var(--muted);white-space:nowrap}
     .obs-top{display:block;min-width:0;padding-top:11px}
     .obs-heading{display:flex;align-items:baseline;gap:9px;min-width:0;flex-wrap:nowrap}
     .obs-name{font-weight:900;font-size:16px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -870,6 +871,9 @@ svg.leaflet-image-layer.leaflet-interactive path {
     .obs-details summary::before{content:"＋";display:inline-block;margin-right:5px;font-size:14px}
     .obs-details[open] summary::before{content:"−"}
     .obs-details-body{padding-top:2px}
+    .obs-detail-item{margin-top:11px;font-size:13px;line-height:1.55}
+    .obs-detail-item strong{display:block;margin-bottom:3px;font-weight:900;color:var(--text)}
+    .obs-detail-item:first-child{margin-top:0}
     .chips{display:flex;flex-wrap:wrap;gap:7px}
     .chip{
       border:1px solid var(--line);background:white;border-radius:999px;padding:8px 11px;font-size:13px
@@ -1108,6 +1112,10 @@ svg.leaflet-image-layer.leaflet-interactive path {
       .teacher-summary-line{grid-template-columns:repeat(4,minmax(0,1fr));gap:4px}
       .teacher-summary-item span{font-size:9px}
       .teacher-summary-item strong{font-size:15px}
+      .obs-compact-grid{grid-template-columns:minmax(70px,1.05fr) minmax(63px,.9fr) minmax(0,1.25fr) auto;gap:6px}
+      .obs-index,.obs-time{font-size:11px}
+      .obs-name{font-size:14px}
+      .obs-count{font-size:13px}
       .status-grid{grid-template-columns:1fr 1fr}
       .signup-number-row{gap:6px}
       .metrics{grid-template-columns:repeat(2,1fr)}
@@ -1320,9 +1328,6 @@ svg.leaflet-image-layer.leaflet-interactive path {
           <button type="button" class="btn primary" id="addObservationBtn">＋ 종 기록</button>
           <button type="button" class="btn danger" id="finishSurveyBtn">조사 종료</button>
         </div>
-      </div>
-      <div id="teacherRecordActions" class="no-print hidden" style="margin-bottom:12px">
-        <button type="button" class="btn ghost" id="returnTeacherBtn">← 교사 화면으로 돌아가기</button>
       </div>
       <div class="card survey-head">
         <div class="sub" id="surveyDateText">-</div>
@@ -1870,7 +1875,6 @@ svg.leaflet-image-layer.leaflet-interactive path {
   let mapTileErrorCount = 0;
   let pendingPhotoBlob = null;
   let pendingPhotoObjectUrl = null;
-  let teacherRecordReturn = false;
   const photoUrlCache = new Map();
   const PHOTO_DB_NAME = "egretSurveyMediaDB_v1";
   const PHOTO_STORE = "photos";
@@ -2550,7 +2554,6 @@ svg.leaflet-image-layer.leaflet-interactive path {
 
     const draft = isDraftSurvey(currentSurvey);
     $("surveyActions").classList.toggle("hidden",!draft);
-    $("teacherRecordActions").classList.toggle("hidden",draft || !teacherRecordReturn);
     $("liveGpsCard").classList.toggle("hidden",!draft);
     $("submittedLocationCard").classList.toggle("hidden",draft);
     $("routeMapControls").classList.toggle("hidden",!draft);
@@ -2818,7 +2821,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
     }
   }
 
-  function renderObservations(){
+  function renderObservationsLegacy(){
     if(!currentSurvey) return;
     const list = $("obsList");
     const obs = currentSurvey.observations || [];
@@ -2872,6 +2875,68 @@ svg.leaflet-image-layer.leaflet-interactive path {
         </details>
       </article>
     `).join("");
+    hydrateObservationPhotos();
+    hydrateObservationMapSnapshots();
+  }
+
+  function renderObservations(){
+    if(!currentSurvey) return;
+    const list = $("obsList");
+    const obs = currentSurvey.observations || [];
+    $("obsCountLabel").textContent = `${obs.length}건`;
+    if(!obs.length){
+      list.innerHTML = `<div class="muted">아직 기록된 종이 없습니다.</div>`;
+      return;
+    }
+    list.innerHTML = obs.map((o,idx)=>{
+      const tags = o.tags?.length ? o.tags.map(escapeHtml).join(" · ") : "기록 없음";
+      const detail = o.habitat ? escapeHtml(o.habitat) : "기록 없음";
+      const lat = Number(o.lat);
+      const lon = Number(o.lon);
+      const accuracy = Math.round(Number(o.accuracy || 0));
+      return `
+        <article class="obs">
+          <div class="obs-card-header">
+            <div class="obs-compact-grid">
+              <span class="obs-index">관찰 기록 ${idx + 1}</span>
+              <span class="obs-time">${escapeHtml(formatTime(o.time,true))}</span>
+              <span class="obs-name">${escapeHtml(o.species || "종명 없음")}</span>
+              <span class="obs-count">${Number(o.count || 0)}개체</span>
+            </div>
+          </div>
+          <div class="obs-meta">GPS ${Number.isFinite(lat) ? lat.toFixed(6) : "-"}, ${Number.isFinite(lon) ? lon.toFixed(6) : "-"} · 정확도 ±${accuracy}m</div>
+          <details class="obs-details">
+            <summary>상세 기록 펼치기</summary>
+            <div class="obs-details-body">
+              <div class="obs-detail-item">
+                <strong>출현지역 및 서식특성</strong>
+                <div>${tags}</div>
+              </div>
+              <div class="obs-detail-item">
+                <strong>상세기록</strong>
+                <div>${detail}</div>
+              </div>
+              ${(o.photoId || o.photoPath) ? `<div class="obs-detail-item"><strong>사진</strong><img class="obs-photo hidden" ${o.photoId ? `data-photo-id="${escapeHtml(o.photoId)}"` : ""} ${o.photoPath ? `data-photo-path="${escapeHtml(o.photoPath)}"` : ""} alt="${escapeHtml(o.species || "관찰 사진")} 사진"></div>` : ""}
+              <div class="obs-detail-item">
+                <strong>관찰위치</strong>
+                <div class="obs-map-shell">
+                  <div class="obs-map-title">${Number.isFinite(lat) ? lat.toFixed(6) : "-"}, ${Number.isFinite(lon) ? lon.toFixed(6) : "-"} · 정확도 ±${accuracy}m</div>
+                  <div class="obs-map-image-wrap">
+                    <img class="obs-map-image hidden" data-observation-index="${idx}" data-map-snapshot-id="${escapeHtml(o.mapSnapshotId || "")}" alt="${escapeHtml(o.species || "관찰 위치")} 관찰 위치 지도 이미지">
+                    <div class="obs-map-image-status" data-map-status-index="${idx}">지도 이미지를 불러오는 중…</div>
+                  </div>
+                </div>
+              </div>
+              ${isDraftSurvey(currentSurvey) ? `
+                <div class="btn-row no-print" style="margin-top:10px">
+                  <button class="btn ghost" onclick="window.__deleteObservation(${idx})">삭제</button>
+                </div>
+              ` : ""}
+            </div>
+          </details>
+        </article>
+      `;
+    }).join("");
     hydrateObservationPhotos();
     hydrateObservationMapSnapshots();
   }
@@ -4521,7 +4586,6 @@ svg.leaflet-image-layer.leaflet-interactive path {
   window.__openHistory = (idx)=>{
     const history = loadJson(STORAGE.history,[]);
     currentSurvey = history[idx];
-    teacherRecordReturn = false;
     resetMapLayers();
     showView("survey");
     renderSurvey();
@@ -4533,7 +4597,6 @@ svg.leaflet-image-layer.leaflet-interactive path {
     const survey = teacherHistoryCache.find(item=>item.id === surveyId);
     if(!survey) return;
     currentSurvey = survey;
-    teacherRecordReturn = true;
     resetMapLayers();
     showView("survey");
     renderSurvey();
@@ -4998,10 +5061,6 @@ svg.leaflet-image-layer.leaflet-interactive path {
     showView($("teacherView").classList.contains("hidden") ? "teacher" : "home");
   });
   $("teacherBackHomeBtn").addEventListener("click",()=>showView("home"));
-  $("returnTeacherBtn").addEventListener("click",()=>{
-    teacherRecordReturn = false;
-    showView("teacher");
-  });
   document.querySelectorAll("[data-teacher-tab]").forEach(btn=>
     btn.addEventListener("click",()=>setTeacherTab(btn.dataset.teacherTab))
   );
