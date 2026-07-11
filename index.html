@@ -697,8 +697,12 @@ svg.leaflet-image-layer.leaflet-interactive path {
       padding:14px 16px;background:rgba(255,255,255,.94);
       backdrop-filter:blur(10px);border-bottom:1px solid var(--line)
     }
-    .title-wrap{display:flex;gap:10px;align-items:center}
-    .logo{width:38px;height:38px;border-radius:12px;background:var(--primary);display:grid;place-items:center;color:white;font-weight:800}
+    .title-wrap{display:flex;gap:9px;align-items:center;min-width:0}
+    .brand-mark{width:42px;height:46px;overflow:hidden;flex:0 0 42px;display:flex;align-items:center}
+    .brand-mark img{height:50px;width:auto;max-width:none;display:block}
+    .brand-copy{min-width:0;line-height:1}
+    .brand-school{font-size:12px;font-weight:900;letter-spacing:-.08em;color:#28458f;white-space:nowrap}
+    .brand-app{margin-top:5px;font-size:18px;font-weight:900;letter-spacing:-.07em;color:#28458f;white-space:nowrap}
     h1{font-size:18px;margin:0;line-height:1.25}
     .sub{font-size:12px;color:var(--muted);margin-top:2px}
     .icon-btn{
@@ -770,6 +774,14 @@ svg.leaflet-image-layer.leaflet-interactive path {
     .teacher-history-item{border:1px solid var(--line);border-radius:14px;padding:12px;background:#fbfcfb}
     .teacher-history-title{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;font-weight:900}
     .teacher-history-meta{margin-top:6px;color:var(--muted);font-size:12px;line-height:1.55}
+    .teacher-menu{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:12px}
+    .teacher-menu-btn{border:1px solid var(--line);background:white;border-radius:13px;padding:10px 8px;color:var(--muted);font-weight:900;font-size:12px}
+    .teacher-menu-btn.active{background:var(--soft);border-color:#a9c8b5;color:var(--primary-2)}
+    .teacher-student-list{display:flex;flex-direction:column;gap:10px}
+    .teacher-student-item{border:1px solid var(--line);border-radius:14px;padding:12px;background:#fbfcfb}
+    .teacher-student-head{display:flex;justify-content:space-between;align-items:center;gap:10px}
+    .teacher-student-name{font-size:15px;font-weight:900}
+    .teacher-student-meta{margin-top:6px;color:var(--muted);font-size:12px;line-height:1.55}
     .gps-summary-line{display:flex;align-items:baseline;gap:8px;margin-top:3px;color:var(--muted)}
     .gps-summary-line strong{color:var(--text);font-size:15px}
     .gps-details{margin-top:12px;border-top:1px solid var(--line);padding-top:9px}
@@ -1060,10 +1072,12 @@ svg.leaflet-image-layer.leaflet-interactive path {
 <div class="app">
   <header class="topbar">
     <div class="title-wrap">
-      <div class="logo">鳥</div>
-      <div>
-        <h1>학교숲 시민과학자</h1>
-        <div class="sub">모바일 생태 조사 기록 · v18</div>
+      <div class="brand-mark">
+        <img src="assets/muwidang-school-reference.png" alt="무위당 마크" />
+      </div>
+      <div class="brand-copy" aria-label="무위당학교 학교숲 시민과학자">
+        <div class="brand-school">무위당학교</div>
+        <div class="brand-app">학교숲 시민과학자</div>
       </div>
     </div>
     <button class="icon-btn" id="settingsBtn" aria-label="설정">⚙️</button>
@@ -1173,10 +1187,6 @@ svg.leaflet-image-layer.leaflet-interactive path {
               <div class="label">경도</div>
               <div class="value" id="liveLon">-</div>
             </div>
-            <div class="status-item">
-              <div class="label">정확도</div>
-              <div class="value" id="liveAcc">-</div>
-            </div>
           </div>
         </details>
       </div>
@@ -1249,33 +1259,50 @@ svg.leaflet-image-layer.leaflet-interactive path {
         </div>
       </div>
 
-      <div class="card">
-        <h2>조사 현황</h2>
-        <div class="metrics">
-          <div class="metric">
-            <div class="n" id="teacherZoneCountText">0</div>
-            <div class="t">조사 구간</div>
+      <div class="teacher-menu no-print">
+        <button class="teacher-menu-btn active" data-teacher-tab="overview">전체 현황</button>
+        <button class="teacher-menu-btn" data-teacher-tab="students">학생 관리</button>
+      </div>
+
+      <div id="teacherOverviewPanel">
+        <div class="card">
+          <h2>전체 조사 현황</h2>
+          <div class="metrics">
+            <div class="metric">
+              <div class="n" id="teacherZoneCountText">0</div>
+              <div class="t">조사 구간</div>
+            </div>
+            <div class="metric">
+              <div class="n" id="teacherSurveyCountText">0</div>
+              <div class="t">저장 조사</div>
+            </div>
+            <div class="metric">
+              <div class="n" id="teacherSubmittedCountText">0</div>
+              <div class="t">최종 제출</div>
+            </div>
+            <div class="metric">
+              <div class="n" id="teacherObservationCountText">0</div>
+              <div class="t">관찰 기록</div>
+            </div>
           </div>
-          <div class="metric">
-            <div class="n" id="teacherSurveyCountText">0</div>
-            <div class="t">저장 조사</div>
-          </div>
-          <div class="metric">
-            <div class="n" id="teacherSubmittedCountText">0</div>
-            <div class="t">최종 제출</div>
-          </div>
-          <div class="metric">
-            <div class="n" id="teacherObservationCountText">0</div>
-            <div class="t">관찰 기록</div>
+        </div>
+
+        <div class="card">
+          <h2>전체 조사 기록</h2>
+          <p class="muted">현재는 이 기기에 저장된 조사 기록을 표시합니다. Supabase 연결 후 모든 학생의 제출 기록을 함께 확인할 수 있습니다.</p>
+          <div id="teacherHistoryList" class="teacher-history-list">
+            <div class="muted">저장된 조사 기록이 없습니다.</div>
           </div>
         </div>
       </div>
 
-      <div class="card">
-        <h2>조사 기록</h2>
-        <p class="muted">현재는 이 기기에 저장된 조사 기록을 표시합니다. Supabase 연결 후 여러 학생의 제출 기록을 이 화면에서 함께 확인할 수 있습니다.</p>
-        <div id="teacherHistoryList" class="teacher-history-list">
-          <div class="muted">저장된 조사 기록이 없습니다.</div>
+      <div id="teacherStudentsPanel" class="hidden">
+        <div class="card">
+          <h2>학생 관리</h2>
+          <p class="muted">학생별 조사 횟수와 관찰 기록 현황을 확인합니다. 학생 계정과 전체 학생 데이터는 Supabase 연결 후 관리할 수 있습니다.</p>
+          <div id="teacherStudentList" class="teacher-student-list">
+            <div class="muted">확인할 학생 기록이 없습니다.</div>
+          </div>
         </div>
       </div>
     </section>
@@ -2167,10 +2194,9 @@ svg.leaflet-image-layer.leaflet-interactive path {
   function renderLiveGps(p){
     $("liveLat").textContent = p.lat.toFixed(6);
     $("liveLon").textContent = p.lon.toFixed(6);
-    $("liveAcc").textContent = `±${Math.round(p.accuracy)}m`;
     const [cls,text] = gpsClass(p.accuracy);
     $("liveGpsPill").className = `gps-pill ${cls}`;
-    $("liveGpsPill").textContent = text;
+    $("liveGpsPill").textContent = `${text} ±${Math.round(p.accuracy)}m`;
     updateCurrentLocationOnMap(p);
   }
 
@@ -3365,6 +3391,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
     const list = $("teacherHistoryList");
     if(!history.length){
       list.innerHTML = `<div class="muted">저장된 조사 기록이 없습니다.</div>`;
+      renderTeacherStudents(history);
       return;
     }
     list.innerHTML = history.map((s,idx)=>{
@@ -3387,6 +3414,63 @@ svg.leaflet-image-layer.leaflet-interactive path {
         </div>
       `;
     }).join("");
+    renderTeacherStudents(history);
+  }
+
+  function renderTeacherStudents(history){
+    const surveys = [...history];
+    if(currentSurvey && !surveys.some(s=>s.id && s.id === currentSurvey.id)){
+      surveys.unshift(currentSurvey);
+    }
+
+    const students = new Map();
+    surveys.forEach(s=>{
+      const name = String(s.participant || "이름 없음").trim() || "이름 없음";
+      const item = students.get(name) || {
+        name,
+        surveys:0,
+        observations:0,
+        latestTime:null,
+        latestStatus:""
+      };
+      item.surveys += 1;
+      item.observations += (s.observations || []).length;
+      if(!item.latestTime || new Date(s.startTime || 0) > new Date(item.latestTime || 0)){
+        item.latestTime = s.startTime;
+        item.latestStatus = isDraftSurvey(s) ? "조사 중" : "제출 완료";
+      }
+      students.set(name,item);
+    });
+
+    const list = $("teacherStudentList");
+    const rows = Array.from(students.values()).sort((a,b)=>
+      new Date(b.latestTime || 0) - new Date(a.latestTime || 0)
+    );
+    if(!rows.length){
+      list.innerHTML = `<div class="muted">확인할 학생 기록이 없습니다.</div>`;
+      return;
+    }
+    list.innerHTML = rows.map(student=>`
+      <div class="teacher-student-item">
+        <div class="teacher-student-head">
+          <div class="teacher-student-name">${escapeHtml(student.name)}</div>
+          <span class="submission-badge">${student.latestStatus}</span>
+        </div>
+        <div class="teacher-student-meta">
+          조사 ${student.surveys}회 · 관찰 기록 ${student.observations}건<br>
+          최근 조사 · ${student.latestTime ? formatTime(student.latestTime,true) : "기록 없음"}
+        </div>
+      </div>
+    `).join("");
+  }
+
+  function setTeacherTab(tab){
+    const overview = tab === "overview";
+    $("teacherOverviewPanel").classList.toggle("hidden",!overview);
+    $("teacherStudentsPanel").classList.toggle("hidden",overview);
+    document.querySelectorAll("[data-teacher-tab]").forEach(btn=>
+      btn.classList.toggle("active",btn.dataset.teacherTab === tab)
+    );
   }
 
   window.__openHistory = (idx)=>{
@@ -3483,6 +3567,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
 
     saveJson(STORAGE.settings,settings);
     renderZoneSettings();
+    if(!$('teacherView').classList.contains('hidden')) renderTeacherDashboard();
     $("settingsModal").classList.add("hidden");
     alert("조사 구간 목록이 저장되었습니다.");
   }
@@ -3509,6 +3594,9 @@ svg.leaflet-image-layer.leaflet-interactive path {
   $("settingsBtn").addEventListener("click",openTeacherSettings);
   $("teacherBackHomeBtn").addEventListener("click",()=>showView("home"));
   $("openTeacherSettingsBtn").addEventListener("click",openTeacherSettings);
+  document.querySelectorAll("[data-teacher-tab]").forEach(btn=>
+    btn.addEventListener("click",()=>setTeacherTab(btn.dataset.teacherTab))
+  );
   $("closeSettingsModal").addEventListener("click",()=>$("settingsModal").classList.add("hidden"));
   $("saveSettingsBtn").addEventListener("click",saveSettings);
   $("teacherAuthBtn").addEventListener("click",authenticateTeacher);
