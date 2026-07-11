@@ -690,7 +690,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
     body{min-height:100vh}
     button,input,select,textarea{font:inherit}
     button{cursor:pointer}
-    .app{max-width:760px;margin:0 auto;min-height:100vh;padding-bottom:96px}
+    .app{max-width:760px;margin:0 auto;min-height:100vh;padding-bottom:72px}
     .topbar{
       position:sticky;top:0;z-index:20;
       display:flex;align-items:center;justify-content:space-between;
@@ -748,12 +748,15 @@ svg.leaflet-image-layer.leaflet-interactive path {
     .hero-action{padding:18px;font-size:17px}
     .muted{color:var(--muted);font-size:13px;line-height:1.45}
     .hidden{display:none!important}
+    #surveyView{padding-bottom:70px}
     .survey-actions{
-      position:sticky;top:68px;z-index:19;margin:0 0 12px;padding:9px;
-      background:rgba(255,255,255,.94);backdrop-filter:blur(10px);
-      border:1px solid var(--line);border-radius:15px;box-shadow:0 5px 18px rgba(28,53,39,.08)
+      position:fixed;left:50%;bottom:calc(52px + env(safe-area-inset-bottom));
+      transform:translateX(-50%);z-index:40;width:min(760px,calc(100% - 24px));
+      padding:0;pointer-events:none
     }
-    .survey-actions .btn{padding:11px 13px}
+    .survey-actions .btn-row{justify-content:flex-end;gap:10px}
+    .survey-actions .btn{flex:0 1 190px;padding:12px 14px;pointer-events:auto;box-shadow:0 8px 20px rgba(28,53,39,.18)}
+    .survey-actions .btn.danger{background:#fff;color:var(--bad);border:1px solid #e9aaa4}
     .survey-head{
       background:linear-gradient(135deg,#176b4d,#25875f);color:white;border:0
     }
@@ -938,13 +941,13 @@ svg.leaflet-image-layer.leaflet-interactive path {
     }
     .footer-nav{
       position:fixed;left:0;right:0;bottom:0;z-index:30;background:white;border-top:1px solid var(--line);
-      padding:9px 12px calc(9px + env(safe-area-inset-bottom));
+      padding:5px 12px calc(5px + env(safe-area-inset-bottom));
       display:flex;justify-content:center
     }
     .footer-inner{width:min(760px,100%);display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-    .nav-btn{border:0;background:transparent;padding:8px;border-radius:12px;color:var(--muted);font-weight:700;font-size:12px}
+    .nav-btn{border:0;background:transparent;padding:7px 6px;border-radius:12px;color:var(--muted);font-weight:700;font-size:12px;display:flex;align-items:center;justify-content:center;gap:5px;line-height:1.1}
     .nav-btn.active{background:var(--soft);color:var(--primary-2)}
-    .nav-btn span{display:block;font-size:18px;margin-bottom:3px}
+    .nav-btn span{display:inline;font-size:16px;margin:0;line-height:1}
     .tiny{font-size:11px;color:var(--muted)}
     .divider{height:1px;background:var(--line);margin:15px 0}
     .nowrap{white-space:nowrap}
@@ -1117,7 +1120,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
     </section>
 
     <section id="surveyView" class="hidden">
-      <div class="survey-actions no-print">
+      <div id="surveyActions" class="survey-actions no-print">
         <div class="btn-row">
           <button class="btn primary" id="addObservationBtn">＋ 종 기록</button>
           <button class="btn danger" id="finishSurveyBtn">조사 종료</button>
@@ -2185,6 +2188,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
     if(!currentSurvey) return;
 
     const draft = isDraftSurvey(currentSurvey);
+    $("surveyActions").classList.toggle("hidden",!draft);
     $("liveGpsCard").classList.toggle("hidden",!draft);
     $("submittedLocationCard").classList.toggle("hidden",draft);
     $("routeMapControls").classList.toggle("hidden",!draft);
