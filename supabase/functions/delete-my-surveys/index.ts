@@ -38,11 +38,15 @@ Deno.serve(async (request) => {
     const { data: callerData, error: callerError } = await admin.auth.getUser(token);
     if (callerError || !callerData.user) return json({ error: "로그인 세션을 확인하지 못했습니다." }, 401);
 
-    const { data: callerProfile } = await admin
+    const { data: callerProfile, error: profileError } = await admin
       .from("profiles")
       .select("role, approval_status")
       .eq("id", callerData.user.id)
       .maybeSingle();
+    if (profileError) {
+      console.error("profile lookup failed", profileError.message);
+      return json({ error: "교사 권한을 확인하지 못했습니다.", detail: profileError.message }, 500);
+    }
     const isOwner = callerProfile?.role === "owner_teacher" && callerProfile.approval_status === "approved";
     if (!isOwner) return json({ error: "주 교사만 조사 기록을 삭제할 수 있습니다." }, 403);
 
@@ -55,20 +59,30 @@ Deno.serve(async (request) => {
     const allowedIds = (surveys || []).map(survey => survey.id);
     if (!allowedIds.length) return json({ error: "삭제할 수 있는 조사 기록이 없습니다." }, 403);
 
-    const { data: observations } = await admin
+    const { data: observations, error: observationLookupError } = await admin
       .from("observations")
-      .select("photo_path")
+      .select("id, photo_path")
       .in("survey_id", allowedIds)
       .not("photo_path", "is", null);
+    if (observationLookupError) {
+      console.error("observation lookup failed", observationLookupError.message);
+      return json({ error: "관찰 기록을 확인하지 못했습니다.", detail: observationLookupError.message }, 500);
+    }
     const photoPaths = (observations || [])
       .map(observation => observation.photo_path)
       .filter((path): path is string => typeof path === "string" && Boolean(path));
     if (photoPaths.length) await admin.storage.from("observation-photos").remove(photoPaths);
 
+    const { error:observationDeleteError } = await admin.from("observations").delete().in("survey_id", allowedIds);
+    if (observationDeleteError) {
+      console.error("observation deletion failed", observationDeleteError.message);
+      return json({ error: "관찰 기록 삭제에 실패했습니다.", detail: observationDeleteError.message }, 500);
+    }
+
     const { error:deleteError } = await admin.from("surveys").delete().in("id", allowedIds);
     if (deleteError) {
       console.error("survey deletion failed", deleteError.message);
-      return json({ error: "조사 기록 삭제에 실패했습니다." }, 500);
+      return json({ error: "조사 기록 삭제에 실패했습니다.", detail: deleteError.message }, 500);
     }
     return json({ ok: true, deleted: allowedIds.length });
   } catch (error) {
