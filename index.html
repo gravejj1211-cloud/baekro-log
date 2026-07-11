@@ -786,6 +786,8 @@ svg.leaflet-image-layer.leaflet-interactive path {
     #surveyView > #submittedReflectionCard{order:4}
     #surveyView > .route-wrap{order:5}
     #submittedLocationCard{display:none!important}
+    .obs-section{min-width:0}
+    .obs-section .obs-list{margin-top:0}
     .survey-actions{
       position:fixed;left:50%;bottom:calc(52px + env(safe-area-inset-bottom));
       transform:translateX(-50%);z-index:40;width:min(760px,calc(100% - 24px));
@@ -1441,8 +1443,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
         </div>
       </div>
 
-      <div id="observationsCard" class="card">
-        <h2>관찰 기록 <span class="tiny hidden" id="obsCountLabel">0건</span></h2>
+      <div id="observationsCard" class="obs-section">
         <div id="obsList" class="obs-list">
           <div class="muted">아직 기록된 종이 없습니다.</div>
         </div>
@@ -2575,14 +2576,13 @@ svg.leaflet-image-layer.leaflet-interactive path {
     $("surveyActions").classList.toggle("hidden",!draft);
     $("liveGpsCard").classList.toggle("hidden",!draft);
     $("routeMapControls").classList.toggle("hidden",!draft);
-    $("routeMap").classList.toggle("hidden",!draft);
-    $("routeSnapshotImage").classList.toggle("hidden",draft);
-    $("routeSnapshotStatus").classList.toggle("hidden",draft);
+    $("routeMap").classList.remove("hidden");
+    $("routeSnapshotImage").classList.add("hidden");
+    $("routeSnapshotStatus").classList.add("hidden");
 
     $("routePositionLegendText").textContent =
       draft ? "현재 위치" : "조사 종료 위치";
 
-    if(!draft) hydrateRouteSnapshot();
   }
 
   function renderSurvey(){
@@ -2962,7 +2962,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
     if(!currentSurvey) return;
     const list = $("obsList");
     const obs = currentSurvey.observations || [];
-    $("obsCountLabel").textContent = `${obs.length}건`;
+    if($("obsCountLabel")) $("obsCountLabel").textContent = `${obs.length}건`;
     if(!obs.length){
       list.innerHTML = `<div class="muted">아직 기록된 종이 없습니다.</div>`;
       return;
@@ -3020,7 +3020,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
     if(!currentSurvey) return;
     const list = $("obsList");
     const obs = currentSurvey.observations || [];
-    $("obsCountLabel").textContent = `${obs.length}건`;
+    if($("obsCountLabel")) $("obsCountLabel").textContent = `${obs.length}건`;
     if(!obs.length){
       list.innerHTML = `<div class="muted">아직 기록된 종이 없습니다.</div>`;
       return;
@@ -3377,7 +3377,6 @@ svg.leaflet-image-layer.leaflet-interactive path {
 
   function drawRoute(){
     if(!currentSurvey) return;
-    if(!isDraftSurvey(currentSurvey) && $("routeMap").classList.contains("hidden")) return;
     if(!ensureMap()) return;
 
     setTimeout(()=>routeMap.invalidateSize(),80);
