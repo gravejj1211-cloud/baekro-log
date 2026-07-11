@@ -2369,9 +2369,11 @@ svg.leaflet-image-layer.leaflet-interactive path {
         const last = currentSurvey.route[currentSurvey.route.length-1];
         const d = distanceMeters(last,p);
         const elapsedSinceLast = last ? Math.abs(new Date(p.timestamp)-new Date(last.timestamp)) : 99999;
-        if(p.accuracy <= 25 && (d >= 3 || elapsedSinceLast >= 10000)){
+        const isReasonableStep = d >= 3 && d <= 100;
+        const isTimedUpdate = elapsedSinceLast >= 10000 && d <= 100;
+        if(p.accuracy <= 25 && (isReasonableStep || isTimedUpdate)){
           currentSurvey.route.push(p);
-          if(d < 100) currentSurvey.distance += d;
+          currentSurvey.distance += d;
           saveJson(STORAGE.draft,currentSurvey);
           renderSurveyMetrics();
           drawRoute();
@@ -3971,6 +3973,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
     $("surveyView").classList.toggle("hidden",view!=="survey");
     $("historyView").classList.toggle("hidden",view!=="history");
     $("teacherView").classList.toggle("hidden",view!=="teacher");
+    document.querySelector(".footer-nav")?.classList.toggle("hidden",view==="auth");
     document.querySelectorAll(".nav-btn").forEach(b=>b.classList.toggle("active",b.dataset.view===view));
     renderAuthSession();
     if(view === "auth") return;
