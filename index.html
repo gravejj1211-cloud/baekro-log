@@ -4717,7 +4717,9 @@ svg.leaflet-image-layer.leaflet-interactive path {
   }
 
   async function renderTeacherStudents(history){
-    teacherStudents = Array.isArray(loadJson(STORAGE.students,[])) ? loadJson(STORAGE.students,[]) : [];
+    teacherStudents = Array.isArray(loadJson(STORAGE.students,[]))
+      ? loadJson(STORAGE.students,[]).filter(student=>student?.role !== "owner_teacher")
+      : [];
     let applications = [];
     if(supabaseClient && currentUser?.role === "owner_teacher"){
       const [{data:profiles,error:profileError},{data:remoteApplications,error:applicationError}] = await Promise.all([
@@ -4725,7 +4727,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
         supabaseClient.from("applications").select("id,login_id,name,email,class_name,requested_role,status,created_at").order("created_at",{ascending:true})
       ]);
       if(!profileError && Array.isArray(profiles)){
-        teacherStudents = profiles.map(profile=>({
+        teacherStudents = profiles.filter(profile=>profile.role !== "owner_teacher").map(profile=>({
           id:profile.id,
           name:profile.name || profile.login_id || "이름 없음",
           group:profile.class_name || "",
