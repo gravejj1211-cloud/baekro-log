@@ -998,7 +998,8 @@ svg.leaflet-image-layer.leaflet-interactive path {
       padding:11px 12px;border-radius:12px;font-size:12px;line-height:1.5
     }
     .history-item{border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:9px}
-    .history-item.selected{border-color:#2f6b4f;background:#f0f8f3;box-shadow:0 0 0 2px rgba(47,107,79,.12)}
+  .history-item.selected{border-color:#2f6b4f;background:#f0f8f3;box-shadow:0 0 0 2px rgba(47,107,79,.12)}
+  .teacher-history-item.selected{border-color:#2f6b4f;background:#f0f8f3;box-shadow:0 0 0 2px rgba(47,107,79,.12)}
     .history-toolbar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:-4px 0 12px}
     .history-toolbar .btn{padding:7px 10px;font-size:11px;min-width:0}
     .history-selection-hint{margin-right:auto;color:var(--muted);font-size:11px}
@@ -1467,13 +1468,6 @@ svg.leaflet-image-layer.leaflet-interactive path {
     <section id="historyView" class="hidden">
       <div class="card">
         <h2>저장된 조사 기록</h2>
-        <div id="historyToolbar" class="history-toolbar hidden">
-          <button class="btn ghost" id="historySelectModeBtn" type="button">선택</button>
-          <span id="historySelectionHint" class="history-selection-hint hidden">기록을 선택하세요</span>
-          <button class="btn ghost" id="historySelectAllBtn" type="button">전체 선택</button>
-          <button class="btn danger" id="historyDeleteSelectedBtn" type="button">선택 삭제</button>
-          <button class="btn ghost" id="historyCancelSelectBtn" type="button">취소</button>
-        </div>
         <div id="historyList"><div class="muted">저장된 기록이 없습니다.</div></div>
       </div>
     </section>
@@ -1516,6 +1510,13 @@ svg.leaflet-image-layer.leaflet-interactive path {
         <div class="card">
           <h2>전체 조사 기록</h2>
           <p class="muted">Supabase에 저장된 전체 학생의 제출 기록을 표시합니다.</p>
+          <div id="teacherHistoryToolbar" class="history-toolbar hidden">
+            <button class="btn ghost" id="teacherHistorySelectModeBtn" type="button">선택</button>
+            <span id="teacherHistorySelectionHint" class="history-selection-hint hidden">기록을 선택하세요</span>
+            <button class="btn ghost" id="teacherHistorySelectAllBtn" type="button">전체 선택</button>
+            <button class="btn danger" id="teacherHistoryDeleteSelectedBtn" type="button">선택 삭제</button>
+            <button class="btn ghost" id="teacherHistoryCancelSelectBtn" type="button">취소</button>
+          </div>
           <div id="teacherHistoryList" class="teacher-history-list">
             <div class="muted">저장된 조사 기록이 없습니다.</div>
           </div>
@@ -1890,6 +1891,8 @@ svg.leaflet-image-layer.leaflet-interactive path {
   }));
   let teacherStudents = loadJson(STORAGE.students,[]);
   let teacherHistoryCache = [];
+  let teacherHistorySelectionMode = false;
+  let selectedTeacherHistoryIds = new Set();
   let currentUser = loadJson(STORAGE.auth,null);
   let recoveryMode = false;
   let signupInProgress = false;
@@ -4005,7 +4008,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
     alert("조사 기록이 최종 제출되었습니다.");
   }
 
-  function renderHistoryLegacy(){
+  function renderHistory(){
     const history = loadJson(STORAGE.history,[]);
     const list = $("historyList");
     if(!history.length){
@@ -4079,7 +4082,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
     });
   }
 
-  function renderHistory(){
+  function renderHistoryStudentSelection(){
     const history = loadJson(STORAGE.history,[]);
     const list = $("historyList");
     if(!history.length){
@@ -4210,12 +4213,81 @@ svg.leaflet-image-layer.leaflet-interactive path {
     return (data || []).map(normalizeRemoteSurvey);
   }
 
+  function updateTeacherHistoryToolbar(records=[]){
+    const toolbar = $("teacherHistoryToolbar");
+    if(!toolbar) return;
+    const isOwner = currentUser?.role === "owner_teacher";
+    const ids = records.map(record=>record.id).filter(Boolean);
+    selectedTeacherHistoryIds = new Set([...selectedTeacherHistoryIds].filter(id=>ids.includes(id)));
+    toolbar.classList.toggle("hidden",!isOwner || !ids.length);
+    const selectedCount = selectedTeacherHistoryIds.size;
+    $("teacherHistorySelectModeBtn").classList.toggle("hidden",teacherHistorySelectionMode);
+    $("teacherHistorySelectionHint").classList.toggle("hidden",!teacherHistorySelectionMode);
+    $("teacherHistorySelectAllBtn").classList.toggle("hidden",!teacherHistorySelectionMode);
+    $("teacherHistoryDeleteSelectedBtn").classList.toggle("hidden",!teacherHistorySelectionMode);
+    $("teacherHistoryCancelSelectBtn").classList.toggle("hidden",!teacherHistorySelectionMode);
+    $("teacherHistorySelectionHint").textContent = selectedCount ? `${selectedCount}건 선택됨` : "기록을 선택하세요";
+    $("teacherHistoryDeleteSelectedBtn").disabled = selectedCount === 0;
+    $("teacherHistorySelectAllBtn").textContent = selectedCount === ids.length ? "전체 해제" : "전체 선택";
+  }
+
+  function attachTeacherHistoryLongPressHandlers(){
+    document.querySelectorAll(".teacher-history-item[data-teacher-history-id]").forEach(item=>{
+      let timer = null;
+      let longPressTriggered = false;
+      const id = item.dataset.teacherHistoryId;
+      const clearTimer = ()=>{
+        if(timer){clearTimeout(timer);timer=null;}
+      };
+      item.addEventListener("pointerdown",event=>{
+        if(!currentUser || currentUser.role !== "owner_teacher" || teacherHistorySelectionMode || event.target.closest("button")) return;
+        timer = setTimeout(()=>{
+          longPressTriggered = true;
+          teacherHistorySelectionMode = true;
+          selectedTeacherHistoryIds.add(id);
+          renderTeacherDashboard();
+        },1000);
+      });
+      ["pointerup","pointercancel","pointerleave"].forEach(type=>item.addEventListener(type,clearTimer));
+      item.addEventListener("click",event=>{
+        if(!teacherHistorySelectionMode || event.target.closest("button")) return;
+        if(longPressTriggered){
+          longPressTriggered = false;
+          return;
+        }
+        selectedTeacherHistoryIds.has(id) ? selectedTeacherHistoryIds.delete(id) : selectedTeacherHistoryIds.add(id);
+        renderTeacherDashboard();
+      });
+    });
+  }
+
+  async function deleteTeacherHistoryIds(ids){
+    const uniqueIds = [...new Set(ids)].filter(Boolean);
+    if(!uniqueIds.length) return;
+    if(!supabaseClient || currentUser?.role !== "owner_teacher"){
+      alert("주 교사만 조사 기록을 삭제할 수 있습니다.");
+      return;
+    }
+    if(!confirm(`${uniqueIds.length}건의 조사 기록을 삭제할까요? 관찰 사진도 함께 삭제됩니다.`)) return;
+    const {error} = await supabaseClient.functions.invoke("delete-my-surveys",{
+      body:{survey_ids:uniqueIds}
+    });
+    if(error){
+      alert(`조사 기록 삭제에 실패했습니다. ${error.message}`);
+      return;
+    }
+    teacherHistorySelectionMode = false;
+    selectedTeacherHistoryIds.clear();
+    await renderTeacherDashboard();
+  }
+
   async function renderTeacherDashboard(){
     const history = await loadTeacherHistory();
     teacherHistoryCache = history;
     renderTeacherFilterOptions(history);
     const filteredRecords = getTeacherFilteredHistory(history);
     const filteredHistory = filteredRecords.map(item=>item.survey);
+    updateTeacherHistoryToolbar(filteredHistory);
     const observations = filteredHistory.reduce((sum,s)=>sum+(s.observations || []).length,0);
     const submitted = filteredHistory.filter(isSubmittedSurvey).length;
     $("teacherZoneCountText").textContent = settings.zones.length;
@@ -4239,9 +4311,10 @@ svg.leaflet-image-layer.leaflet-interactive path {
       const uniqueSpecies = new Set((s.observations || []).map(o=>o.species.trim().toLowerCase())).size;
       const total = (s.observations || []).reduce((sum,o)=>sum+Number(o.count || 0),0);
       return `
-        <div class="teacher-history-item">
+        <div class="teacher-history-item${selectedTeacherHistoryIds.has(s.id) ? " selected" : ""}" data-teacher-history-id="${escapeHtml(s.id)}">
           <div class="teacher-history-title">
             <span>${escapeHtml(s.date)} · ${escapeHtml(s.zone?.name || "미지정")}</span>
+            ${currentUser?.role === "owner_teacher" && teacherHistorySelectionMode ? `<button type="button" class="history-select-box" onclick="window.__toggleTeacherHistorySelection('${escapeHtml(s.id)}')">${selectedTeacherHistoryIds.has(s.id) ? "✓" : ""}</button>` : ""}
             ${isSubmittedSurvey(s) ? `<span class="submission-badge">최종 제출</span>` : `<span class="tiny">임시 저장</span>`}
           </div>
           <div class="teacher-history-meta">
@@ -4251,13 +4324,23 @@ svg.leaflet-image-layer.leaflet-interactive path {
           </div>
           <div class="btn-row" style="margin-top:10px">
             <button class="btn ghost" onclick="window.__openTeacherHistory('${escapeHtml(s.id)}')">조사 기록 보기</button>
+            ${currentUser?.role === "owner_teacher" && !teacherHistorySelectionMode ? `<button class="btn danger" onclick="window.__deleteTeacherHistory('${escapeHtml(s.id)}')">삭제</button>` : ""}
           </div>
         </div>
       `;
     }).join("");
+    attachTeacherHistoryLongPressHandlers();
     await renderTeacherStudents(history);
     renderTeacherFilterOptions(history);
   }
+
+  window.__toggleTeacherHistorySelection = id=>{
+    if(!teacherHistorySelectionMode) return;
+    selectedTeacherHistoryIds.has(id) ? selectedTeacherHistoryIds.delete(id) : selectedTeacherHistoryIds.add(id);
+    renderTeacherDashboard();
+  };
+
+  window.__deleteTeacherHistory = id=>deleteTeacherHistoryIds([id]);
 
   function renderTeacherFilterOptions(history){
     const registeredGroups = teacherStudents
@@ -5310,23 +5393,22 @@ svg.leaflet-image-layer.leaflet-interactive path {
     $("userMenuBtn").classList.toggle("open",!isOpen);
   });
   $("logoutBtn").addEventListener("click",logout);
-  $("historySelectAllBtn").addEventListener("click",()=>{
-    const history = loadJson(STORAGE.history,[]);
-    const deletable = history.map((item,idx)=>isHistoryDeletable(item) ? idx : null).filter(idx=>idx !== null);
-    if(selectedHistoryIndices.size === deletable.length) selectedHistoryIndices.clear();
-    else selectedHistoryIndices = new Set(deletable);
-    renderHistory();
+  $("teacherHistorySelectModeBtn").addEventListener("click",()=>{
+    teacherHistorySelectionMode = true;
+    selectedTeacherHistoryIds.clear();
+    renderTeacherDashboard();
   });
-  $("historySelectModeBtn").addEventListener("click",()=>{
-    historySelectionMode = true;
-    selectedHistoryIndices.clear();
-    renderHistory();
+  $("teacherHistorySelectAllBtn").addEventListener("click",()=>{
+    const ids = getTeacherFilteredHistory(teacherHistoryCache).map(({survey})=>survey.id).filter(Boolean);
+    if(selectedTeacherHistoryIds.size === ids.length) selectedTeacherHistoryIds.clear();
+    else selectedTeacherHistoryIds = new Set(ids);
+    renderTeacherDashboard();
   });
-  $("historyDeleteSelectedBtn").addEventListener("click",()=>deleteHistoryIndices([...selectedHistoryIndices]));
-  $("historyCancelSelectBtn").addEventListener("click",()=>{
-    historySelectionMode = false;
-    selectedHistoryIndices.clear();
-    renderHistory();
+  $("teacherHistoryDeleteSelectedBtn").addEventListener("click",()=>deleteTeacherHistoryIds([...selectedTeacherHistoryIds]));
+  $("teacherHistoryCancelSelectBtn").addEventListener("click",()=>{
+    teacherHistorySelectionMode = false;
+    selectedTeacherHistoryIds.clear();
+    renderTeacherDashboard();
   });
   document.addEventListener("click",e=>{
     if(!$("userMenu").contains(e.target) && !$("userMenuBtn").contains(e.target)){

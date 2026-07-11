@@ -44,12 +44,12 @@ Deno.serve(async (request) => {
       .eq("id", callerData.user.id)
       .maybeSingle();
     const isOwner = callerProfile?.role === "owner_teacher" && callerProfile.approval_status === "approved";
+    if (!isOwner) return json({ error: "주 교사만 조사 기록을 삭제할 수 있습니다." }, 403);
 
     let surveyQuery = admin
       .from("surveys")
       .select("id, user_id")
       .in("id", surveyIds);
-    if (!isOwner) surveyQuery = surveyQuery.eq("user_id", callerData.user.id);
     const { data: surveys, error:surveyError } = await surveyQuery;
     if (surveyError) return json({ error: "조사 기록을 확인하지 못했습니다." }, 500);
     const allowedIds = (surveys || []).map(survey => survey.id);
