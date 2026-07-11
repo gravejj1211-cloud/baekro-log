@@ -779,8 +779,8 @@ svg.leaflet-image-layer.leaflet-interactive path {
     .teacher-menu{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:12px}
     .teacher-menu-btn{border:1px solid var(--line);background:white;border-radius:13px;padding:10px 8px;color:var(--muted);font-weight:900;font-size:12px}
     .teacher-menu-btn.active{background:var(--soft);border-color:#a9c8b5;color:var(--primary-2)}
-    .teacher-student-list{display:flex;flex-direction:column;gap:10px}
-    .teacher-student-item{border:1px solid var(--line);border-radius:14px;padding:12px;background:#fbfcfb}
+    .teacher-student-list{display:flex;flex-direction:column;border-top:1px solid var(--line)}
+    .teacher-student-item{border-bottom:1px solid var(--line);padding:12px 2px;background:transparent}
     .teacher-student-head{display:flex;justify-content:space-between;align-items:center;gap:10px}
     .teacher-student-name{font-size:15px;font-weight:900}
     .teacher-student-meta{margin-top:6px;color:var(--muted);font-size:12px;line-height:1.55}
@@ -795,9 +795,10 @@ svg.leaflet-image-layer.leaflet-interactive path {
     .teacher-filter-summary{min-width:0;color:var(--muted);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .teacher-filter-summary strong{color:var(--primary-2)}
     .teacher-filter-toolbar .btn{flex:0 0 auto;padding:8px 12px;font-size:12px}
-    .teacher-summary-line{display:flex;align-items:center;justify-content:space-between;gap:8px;overflow-x:auto;white-space:nowrap;padding:2px 0}
-    .teacher-summary-line span{color:var(--muted);font-size:11px;font-weight:800}
-    .teacher-summary-line strong{margin-left:3px;color:var(--primary-2);font-size:16px;font-weight:900}
+    .teacher-summary-line{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:2px 0}
+    .teacher-summary-item{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-width:0;text-align:center}
+    .teacher-summary-item span{color:var(--muted);font-size:11px;font-weight:800;white-space:nowrap}
+    .teacher-summary-item strong{color:var(--primary-2);font-size:17px;font-weight:900;line-height:1.1}
     @media (max-width:520px){
       .teacher-filter-row{grid-template-columns:1fr 1fr}
     }
@@ -1074,6 +1075,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
       .header-tools{gap:5px}
       .teacher-name{font-size:10px;padding-left:5px}
       .icon-btn{width:36px;height:36px;font-size:16px}
+      .teacher-summary-line{grid-template-columns:repeat(2,1fr);row-gap:12px}
       .status-grid{grid-template-columns:1fr 1fr}
       .metrics{grid-template-columns:repeat(2,1fr)}
       .metric{padding:10px 5px}
@@ -1301,10 +1303,10 @@ svg.leaflet-image-layer.leaflet-interactive path {
         <div class="card">
           <h2>전체 조사 현황</h2>
           <div class="teacher-summary-line" aria-label="전체 조사 요약">
-            <span>등록 구간 <strong id="teacherZoneCountText">0</strong></span>
-            <span>저장 조사 <strong id="teacherSurveyCountText">0</strong></span>
-            <span>제출 완료 <strong id="teacherSubmittedCountText">0</strong></span>
-            <span>관찰 기록 <strong id="teacherObservationCountText">0</strong></span>
+            <div class="teacher-summary-item"><strong id="teacherZoneCountText">0</strong><span>등록 구간</span></div>
+            <div class="teacher-summary-item"><strong id="teacherSurveyCountText">0</strong><span>저장 조사</span></div>
+            <div class="teacher-summary-item"><strong id="teacherSubmittedCountText">0</strong><span>제출 완료</span></div>
+            <div class="teacher-summary-item"><strong id="teacherObservationCountText">0</strong><span>관찰 기록</span></div>
           </div>
           <div class="teacher-filter-toolbar">
             <div id="teacherFilterSummary" class="teacher-filter-summary">전체 조건</div>
@@ -1326,7 +1328,10 @@ svg.leaflet-image-layer.leaflet-interactive path {
         <div class="card">
           <div class="section-head-row">
             <h2>학생 관리</h2>
-            <button class="btn primary" id="addStudentBtn">＋ 학생 직접 추가</button>
+            <div class="teacher-student-actions" style="margin-top:0">
+              <button class="btn primary" id="addStudentBtn">＋ 학생 추가</button>
+              <button class="btn secondary" id="addTeacherBtn">＋ 협력 교사</button>
+            </div>
           </div>
           <p class="muted">학생별 조사 횟수와 관찰 기록 현황을 확인합니다. 학생 계정과 전체 학생 데이터는 Supabase 연결 후 관리할 수 있습니다.</p>
           <div class="teacher-student-actions" style="margin:12px 0">
@@ -1554,6 +1559,13 @@ svg.leaflet-image-layer.leaflet-interactive path {
     <div class="form-group">
       <label for="studentGroupInput">학년·반 또는 모둠</label>
       <input id="studentGroupInput" type="text" placeholder="예: 5학년 2반 / 햇살 모둠" autocomplete="off" />
+    </div>
+    <div class="form-group">
+      <label for="studentRoleInput">역할</label>
+      <select id="studentRoleInput">
+        <option value="student">학생</option>
+        <option value="collaborating_teacher">협력 교사</option>
+      </select>
     </div>
     <div class="form-group">
       <label for="studentCodeInput">학생 아이디 또는 인증 코드</label>
@@ -3635,7 +3647,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
       <div class="teacher-student-item">
         <div class="teacher-student-head">
           <div class="teacher-student-name">${escapeHtml(student.name)}</div>
-          <span class="submission-badge">${student.registered ? "승인됨" : "기록에서 확인됨"}</span>
+          <span class="submission-badge">${student.registered ? teacherRoleLabel(student.role) : "계정 미등록"}</span>
         </div>
         <div class="teacher-student-meta">
           ${student.group ? `${escapeHtml(student.group)} · ` : ""}조사 ${student.surveys}회 · 관찰 기록 ${student.observations}건<br>
@@ -3644,19 +3656,26 @@ svg.leaflet-image-layer.leaflet-interactive path {
         <div class="teacher-student-actions">
           ${student.registered
             ? `<button class="btn ghost" onclick="window.__openStudentEditor('${escapeHtml(student.id)}')">정보 수정</button>
-               <button class="btn danger" onclick="window.__deleteStudent('${escapeHtml(student.id)}')">학생 삭제</button>`
-            : `<button class="btn secondary" onclick="window.__openStudentEditor('')">학생으로 등록</button>`}
+               <button class="btn danger" onclick="window.__deleteStudent('${escapeHtml(student.id)}')">삭제</button>`
+            : `<span class="tiny">조사 기록에 이름만 남은 사용자입니다.</span>`}
         </div>
       </div>
     `).join("");
   }
 
-  window.__openStudentEditor = (studentId="")=>{
+  function teacherRoleLabel(role){
+    return role === "collaborating_teacher" ? "협력 교사" : "학생";
+  }
+
+  window.__openStudentEditor = (studentId="",defaultRole="student")=>{
     const student = teacherStudents.find(item=>item.id === studentId);
-    $("studentModalTitle").textContent = student ? "학생 정보 수정" : "학생 직접 추가";
+    $("studentModalTitle").textContent = student
+      ? "계정 정보 수정"
+      : defaultRole === "collaborating_teacher" ? "협력 교사 직접 추가" : "학생 직접 추가";
     $("studentEditId").value = student?.id || "";
     $("studentNameInput").value = student?.name || "";
     $("studentGroupInput").value = student?.group || "";
+    $("studentRoleInput").value = student?.role || defaultRole;
     $("studentCodeInput").value = student?.loginCode || "";
     $("studentMemoInput").value = student?.memo || "";
     $("studentModal").classList.remove("hidden");
@@ -3684,6 +3703,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
       id,
       name,
       group:$("studentGroupInput").value.trim(),
+      role:$("studentRoleInput").value,
       loginCode:$("studentCodeInput").value.trim(),
       memo:$("studentMemoInput").value.trim(),
       createdAt:teacherStudents.find(item=>item.id === id)?.createdAt || new Date().toISOString()
@@ -3836,6 +3856,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
   $("applyTeacherFilterBtn").addEventListener("click",applyTeacherFilter);
   $("addStudentBtn").addEventListener("click",()=>window.__openStudentEditor(""));
   $("closeStudentModal").addEventListener("click",()=>$("studentModal").classList.add("hidden"));
+  $("addTeacherBtn").addEventListener("click",()=>window.__openStudentEditor("","collaborating_teacher"));
   $("saveStudentBtn").addEventListener("click",saveTeacherStudent);
   $("closeSettingsModal").addEventListener("click",()=>$("settingsModal").classList.add("hidden"));
   $("saveSettingsBtn").addEventListener("click",saveSettings);
