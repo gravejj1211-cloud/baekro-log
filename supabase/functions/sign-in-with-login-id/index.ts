@@ -40,10 +40,7 @@ Deno.serve(async (request) => {
     const serviceRoleKey = Deno.env.get("SCHOOLFOREST_SERVICE_ROLE_KEY")
       || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")
       || firstKeyFromDictionary(Deno.env.get("SUPABASE_SECRET_KEYS"));
-    const publicKey = Deno.env.get("SUPABASE_ANON_KEY")
-      || Deno.env.get("SUPABASE_PUBLISHABLE_KEY")
-      || firstKeyFromDictionary(Deno.env.get("SUPABASE_PUBLISHABLE_KEYS"));
-    if (!serviceRoleKey || !publicKey) {
+    if (!serviceRoleKey) {
       console.error("service role key is not available in Edge Function secrets");
       return json({ error: "서버 인증 설정이 완료되지 않았습니다." }, 500);
     }
@@ -71,10 +68,7 @@ Deno.serve(async (request) => {
       return json({ error: "회원 인증 정보를 조회하지 못했습니다." }, 500);
     }
 
-    const publicClient = createClient(supabaseUrl, publicKey, {
-      auth: { autoRefreshToken: false, persistSession: false }
-    });
-    const { data: authData, error: authError } = await publicClient.auth.signInWithPassword({
+    const { data: authData, error: authError } = await admin.auth.signInWithPassword({
       email,
       password
     });

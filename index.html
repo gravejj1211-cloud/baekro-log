@@ -4431,7 +4431,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
     const id = $("authId").value.trim();
     const password = $("authPassword").value.trim();
     if(!id || !password){
-      alert("이메일과 비밀번호를 입력하세요.");
+      alert("아이디와 비밀번호를 입력하세요.");
       return;
     }
     if(!supabaseClient){
@@ -4442,7 +4442,12 @@ svg.leaflet-image-layer.leaflet-interactive path {
       body:{login_id:id,password}
     });
     if(error){
-      alert(`로그인하지 못했습니다. ${error.message}`);
+      let detail = error.message;
+      try{
+        const responseBody = await error.context?.json();
+        if(responseBody?.error) detail = responseBody.error;
+      }catch(_error){ /* Use the SDK message when the response body is unavailable. */ }
+      alert(`로그인하지 못했습니다. ${detail}`);
       return;
     }
     if(!data?.session){
