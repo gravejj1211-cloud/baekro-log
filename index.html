@@ -2191,18 +2191,35 @@ svg.leaflet-image-layer.leaflet-interactive path {
     $("homeGpsValue").textContent = "±5m 목표로 측정 중";
 
     try{
-      const best = await collectBestPosition({
-        maxMs:15000,
-        target:5,
-        limit:10,
-        onUpdate:({best,elapsed,maxMs})=>{
-          const remainingSeconds = Math.max(0,Math.ceil((maxMs - elapsed) / 1000));
-          btn.textContent = `GPS 정밀 측정 중… · ${remainingSeconds}초`;
-          $("homeGpsValue").innerHTML = best
-            ? `현재 최선 ±${Math.round(best.accuracy)}m`
-            : "GPS 신호 검색 중";
-        }
-      });
+      let best;
+      let startLocationMethod = "gps";
+      let startLocationNote = "GPS 자동 측정";
+      try{
+        best = await collectBestPosition({
+          maxMs:15000,
+          target:5,
+          limit:10,
+          onUpdate:({best,elapsed,maxMs})=>{
+            const remainingSeconds = Math.max(0,Math.ceil((maxMs - elapsed) / 1000));
+            btn.textContent = `GPS 정밀 측정 중… · ${remainingSeconds}초`;
+            $("homeGpsValue").innerHTML = best
+              ? `현재 최선 ±${Math.round(best.accuracy)}m`
+              : "GPS 신호 검색 중";
+          }
+        });
+      }catch(gpsError){
+        const fallback = gpsError.best || lastLivePosition;
+        if(!fallback) throw gpsError;
+        const accuracy = Math.round(Number(fallback.accuracy || 9999));
+        const useFallback = confirm(
+          `GPS가 ±10m 이내로 잡히지 않았습니다. 현재 위치 ±${accuracy}m를 시작 위치로 사용할까요?\n\n조사 후 교사 화면에서 정확도 초과 기록으로 확인할 수 있습니다.`
+        );
+        if(!useFallback) throw new Error("GPS 측정을 취소했습니다.");
+        best = fallback;
+        startLocationMethod = "low_accuracy";
+        startLocationNote = `정확도 초과 GPS 사용 · ±${accuracy}m`;
+        $("homeGpsValue").textContent = `정확도 초과 위치 사용 · ±${accuracy}m`;
+      }
 
       const zone = {
         name:selectedZone,
@@ -2216,6 +2233,8 @@ svg.leaflet-image-layer.leaflet-interactive path {
         endTime:null,
         startPosition:best,
         endPosition:null,
+        startLocationMethod,
+        startLocationNote,
         zone,
         weather:null,
         route:[best],
