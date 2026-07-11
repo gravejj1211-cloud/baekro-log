@@ -1580,12 +1580,11 @@ svg.leaflet-image-layer.leaflet-interactive path {
           <button type="button" id="removePhotoBtn" class="photo-remove" aria-label="사진 제거">✕</button>
         </div>
       </div>
-      <p class="muted">사진은 긴 변 1,600px 이하로 자동 압축합니다. 사진과 GPS 좌표는 같은 관찰 기록으로 연결됩니다.</p>
     </div>
 
     <div class="form-group">
       <label for="speciesName">종명</label>
-      <input id="speciesName" list="speciesList" placeholder="예: 중대백로" />
+      <input id="speciesName" list="speciesList" placeholder="종명을 입력하세요" />
       <datalist id="speciesList">
         <option value="왜가리"></option>
         <option value="중대백로"></option>
@@ -1613,23 +1612,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
 
     <div class="form-group">
       <label>출현지역·서식 특성</label>
-      <div class="chips" id="habitatChips">
-        <button type="button" class="chip">하천</button>
-        <button type="button" class="chip">습지</button>
-        <button type="button" class="chip">논</button>
-        <button type="button" class="chip">농수로</button>
-        <button type="button" class="chip">저수지</button>
-        <button type="button" class="chip">모래톱</button>
-        <button type="button" class="chip">자갈밭</button>
-        <button type="button" class="chip">수변 식생</button>
-        <button type="button" class="chip">나무 위</button>
-        <button type="button" class="chip">얕은 물</button>
-        <button type="button" class="chip">먹이활동</button>
-        <button type="button" class="chip">휴식</button>
-        <button type="button" class="chip">비행</button>
-        <button type="button" class="chip">번식</button>
-        <button type="button" class="chip" id="habitatOtherChip" data-other="true">기타 직접 입력</button>
-      </div>
+      <div class="chips" id="habitatChips"></div>
       <div id="habitatOtherWrap" class="other-habitat hidden">
         <input id="habitatOther" type="text"
           placeholder="출현지역 또는 서식 특성을 직접 입력하세요"
@@ -1650,7 +1633,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
 <div id="settingsModal" class="modal hidden">
   <div class="sheet">
     <div class="sheet-head">
-      <h3>교사용 조사 구간 설정</h3>
+      <h3>교사용 조사 설정</h3>
       <button class="icon-btn" id="closeSettingsModal">✕</button>
     </div>
 
@@ -1667,7 +1650,15 @@ svg.leaflet-image-layer.leaflet-interactive path {
 
       <button class="btn secondary block" id="addZoneBtn">＋ 조사 구간 추가</button>
 
-      <button class="btn primary block" id="saveSettingsBtn">구간 목록 저장</button>
+      <div class="form-group" style="margin-top:18px">
+        <label>출현지역·서식 특성 선택지</label>
+        <p class="muted">학생 화면에 표시할 선택지를 관리합니다. 직접 입력은 항상 기본으로 유지됩니다.</p>
+        <div id="habitatEditor" class="zone-editor"></div>
+      </div>
+
+      <button class="btn secondary block" id="addHabitatOptionBtn">＋ 서식 특성 추가</button>
+
+      <button class="btn primary block" id="saveSettingsBtn">조사 구간·서식 선택지 저장</button>
     </div>
   </div>
 </div>
@@ -1842,9 +1833,14 @@ svg.leaflet-image-layer.leaflet-interactive path {
     "섬강 2지점",
     "섬강 3지점"
   ];
+  const defaultHabitatOptions = [
+    "하천","습지","논","농수로","저수지","모래톱","자갈밭",
+    "수변 식생","나무 위","얕은 물","먹이활동","휴식","비행","번식"
+  ];
 
   let settings = normalizeSettings(loadJson(STORAGE.settings, {
-    zones: defaultZones
+    zones: defaultZones,
+    habitatOptions: defaultHabitatOptions
   }));
   let teacherStudents = loadJson(STORAGE.students,[]);
   let teacherHistoryCache = [];
@@ -2035,8 +2031,12 @@ svg.leaflet-image-layer.leaflet-interactive path {
     zones = zones.map(z => typeof z === "string" ? z : (z && z.name ? z.name : ""))
       .map(z => String(z).trim()).filter(Boolean);
     if(!zones.length) zones = [...defaultZones];
+    let habitatOptions = Array.isArray(source.habitatOptions) ? source.habitatOptions : defaultHabitatOptions;
+    habitatOptions = habitatOptions.map(option=>String(option ?? "").trim()).filter(Boolean);
+    if(!habitatOptions.length) habitatOptions = [...defaultHabitatOptions];
     return {
       zones,
+      habitatOptions
     };
   }
 
@@ -2127,6 +2127,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
   function renderZoneSettings(){
     renderStudentZoneSelect();
     renderZoneEditor();
+    renderHabitatEditor();
     updateZoneSummary();
   }
 
@@ -2134,7 +2135,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
     if(!supabaseClient || !currentUser?.authId) return;
     const {data,error} = await supabaseClient
       .from("survey_settings")
-      .select("zones")
+      .select("zones,habitat_options")
       .eq("id","default")
       .maybeSingle();
     if(error){
@@ -2142,7 +2143,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
       return;
     }
     if(Array.isArray(data?.zones) && data.zones.length){
-      settings = normalizeSettings({zones:data.zones});
+      settings = normalizeSettings({zones:data.zones,habitatOptions:data.habitat_options});
       saveJson(STORAGE.settings,settings);
       renderZoneSettings();
     }
@@ -2212,6 +2213,58 @@ svg.leaflet-image-layer.leaflet-interactive path {
     });
   }
 
+  function renderHabitatEditor(){
+    const editor = $("habitatEditor");
+    if(!editor) return;
+    editor.innerHTML = "";
+    settings.habitatOptions.forEach((name,idx)=>{
+      const row = document.createElement("div");
+      row.className = "zone-edit-row";
+      row.innerHTML = `
+        <input data-habitat-index="${idx}" value="${escapeHtml(name)}" aria-label="서식 특성명">
+        <button type="button" class="mini-btn" data-habitat-delete="${idx}" aria-label="삭제">✕</button>
+      `;
+      editor.appendChild(row);
+    });
+    editor.querySelectorAll("[data-habitat-delete]").forEach(btn=>{
+      btn.addEventListener("click",()=>{
+        syncHabitatInputs();
+        const idx = Number(btn.dataset.habitatDelete);
+        settings.habitatOptions.splice(idx,1);
+        if(!settings.habitatOptions.length) settings.habitatOptions = [...defaultHabitatOptions];
+        renderHabitatEditor();
+      });
+    });
+  }
+
+  function syncHabitatInputs(){
+    document.querySelectorAll("[data-habitat-index]").forEach(input=>{
+      const idx = Number(input.dataset.habitatIndex);
+      if(Number.isInteger(idx)) settings.habitatOptions[idx] = input.value.trim();
+    });
+  }
+
+  function renderHabitatChips(){
+    const container = $("habitatChips");
+    if(!container) return;
+    container.innerHTML = settings.habitatOptions
+      .map(option=>`<button type="button" class="chip">${escapeHtml(option)}</button>`).join("") +
+      `<button type="button" class="chip" id="habitatOtherChip" data-other="true">기타 직접 입력</button>`;
+    container.querySelectorAll(".chip").forEach(chip=>{
+      chip.addEventListener("click",()=>{
+        chip.classList.toggle("active");
+        const active = chip.classList.contains("active");
+        if(chip.dataset.other === "true"){
+          $("habitatOtherWrap").classList.toggle("hidden",!active);
+          if(active) setTimeout(()=>$('habitatOther').focus(),50);
+          else $("habitatOther").value = "";
+          return;
+        }
+        active ? selectedHabitatTags.add(chip.textContent.trim()) : selectedHabitatTags.delete(chip.textContent.trim());
+      });
+    });
+  }
+
   function updateZoneSummary(){
     $("zoneSummary").querySelector(".value").textContent = `${settings.zones.length}개 구간`;
   }
@@ -2219,6 +2272,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
   function openTeacherSettings(){
     $("settingsModal").classList.remove("hidden");
     renderZoneEditor();
+    renderHabitatEditor();
   }
 
   async function fetchWeather(lat,lon){
@@ -3352,6 +3406,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
       return;
     }
     resetObservationLocation();
+    renderHabitatChips();
     selectedHabitatTags.clear();
     clearPendingPhoto();
     $("speciesName").value = "";
@@ -4854,7 +4909,9 @@ svg.leaflet-image-layer.leaflet-interactive path {
 
   async function saveSettings(){
     syncZoneInputs();
+    syncHabitatInputs();
     settings.zones = settings.zones.map(z=>String(z).trim()).filter(Boolean);
+    settings.habitatOptions = settings.habitatOptions.map(option=>String(option).trim()).filter(Boolean);
 
     const unique = [];
     const seen = new Set();
@@ -4866,6 +4923,16 @@ svg.leaflet-image-layer.leaflet-interactive path {
     });
     settings.zones = unique;
 
+    const uniqueHabitatOptions = [];
+    const seenHabitatOptions = new Set();
+    settings.habitatOptions.forEach(option=>{
+      if(!seenHabitatOptions.has(option)){
+        seenHabitatOptions.add(option);
+        uniqueHabitatOptions.push(option);
+      }
+    });
+    settings.habitatOptions = uniqueHabitatOptions.length ? uniqueHabitatOptions : [...defaultHabitatOptions];
+
     if(!settings.zones.length){
       alert("조사 구간을 한 개 이상 입력하세요.");
       return;
@@ -4876,6 +4943,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
       const {error} = await supabaseClient.from("survey_settings").upsert({
         id:"default",
         zones:settings.zones,
+        habitat_options:settings.habitatOptions,
         updated_by:currentUser.authId,
         updated_at:new Date().toISOString()
       },{onConflict:"id"});
@@ -4952,6 +5020,14 @@ svg.leaflet-image-layer.leaflet-interactive path {
   $("saveStudentBtn").addEventListener("click",saveTeacherStudent);
   $("closeSettingsModal").addEventListener("click",()=>$("settingsModal").classList.add("hidden"));
   $("saveSettingsBtn").addEventListener("click",saveSettings);
+  $("addHabitatOptionBtn").addEventListener("click",()=>{
+    syncHabitatInputs();
+    settings.habitatOptions.push(`새 서식 특성 ${settings.habitatOptions.length+1}`);
+    renderHabitatEditor();
+    const inputs = document.querySelectorAll("[data-habitat-index]");
+    const last = inputs[inputs.length-1];
+    if(last){last.focus();last.select();}
+  });
   $("addZoneBtn").addEventListener("click",()=>{
     syncZoneInputs();
     settings.zones.push(`새 조사 구간 ${settings.zones.length+1}`);
