@@ -818,7 +818,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
     .teacher-history-item{border:1px solid var(--line);border-radius:14px;padding:12px;background:#fbfcfb}
     .teacher-history-title{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;font-weight:900}
     .teacher-history-meta{margin-top:6px;color:var(--muted);font-size:12px;line-height:1.55}
-    .teacher-menu{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:12px}
+    .teacher-menu{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
     .teacher-menu-btn{border:1px solid var(--line);background:white;border-radius:13px;padding:10px 8px;color:var(--muted);font-weight:900;font-size:12px}
     .teacher-menu-btn.active{background:var(--soft);border-color:#a9c8b5;color:var(--primary-2)}
     .teacher-student-list{display:flex;flex-direction:column;border-top:1px solid var(--line)}
@@ -843,7 +843,20 @@ svg.leaflet-image-layer.leaflet-interactive path {
     .teacher-summary-item{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-width:0;text-align:center}
     .teacher-summary-item span{color:var(--muted);font-size:11px;font-weight:800;white-space:nowrap}
     .teacher-summary-item strong{color:var(--primary-2);font-size:17px;font-weight:900;line-height:1.1}
+    .data-usage-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:14px}
+    .data-usage-item{padding:12px 8px;border:1px solid var(--line);border-radius:12px;background:#f8fbf9;text-align:center}
+    .data-usage-item strong{display:block;color:var(--primary-2);font-size:18px;line-height:1.1}
+    .data-usage-item span{display:block;margin-top:4px;color:var(--muted);font-size:11px;font-weight:800}
+    .data-plan-note{display:flex;flex-direction:column;gap:3px;margin-top:14px;padding:11px 12px;border:1px solid #d7e7dc;border-radius:12px;background:#f0f8f3;color:var(--primary-2);font-size:12px}
+    .data-plan-note span,.data-plan-note small{color:var(--muted);font-size:11px}
+    .data-action-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:14px}
+    .data-danger-card{border-color:#edc9c5}
+    .data-danger-card .btn{width:100%}
     @media (max-width:520px){
+      .teacher-menu{grid-template-columns:repeat(3,1fr);gap:5px}
+      .teacher-menu-btn{padding:9px 4px;font-size:10px}
+      .data-usage-grid{grid-template-columns:repeat(2,1fr)}
+      .data-action-grid{grid-template-columns:1fr}
       .teacher-filter-row{grid-template-columns:1fr 1fr}
     }
     .gps-summary-line{display:flex;align-items:baseline;gap:8px;margin-top:3px;color:var(--muted)}
@@ -1485,6 +1498,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
       <div class="teacher-menu no-print">
         <button class="teacher-menu-btn active" data-teacher-tab="overview">전체 현황</button>
         <button class="teacher-menu-btn" data-teacher-tab="students">회원 관리</button>
+        <button class="teacher-menu-btn" data-teacher-tab="data">데이터 관리</button>
       </div>
 
       <div id="teacherOverviewPanel">
@@ -1540,6 +1554,36 @@ svg.leaflet-image-layer.leaflet-interactive path {
           <div id="teacherStudentList" class="teacher-student-list">
             <div class="muted">확인할 학생 기록이 없습니다.</div>
           </div>
+        </div>
+      </div>
+
+      <div id="teacherDataPanel" class="hidden">
+        <div class="card">
+          <h2>데이터 관리</h2>
+          <p class="muted">주 교사만 백업과 데이터 정리 기능을 사용할 수 있습니다.</p>
+          <div class="data-usage-grid">
+            <div class="data-usage-item"><strong id="teacherDataSurveyCount">0</strong><span>조사 기록</span></div>
+            <div class="data-usage-item"><strong id="teacherDataObservationCount">0</strong><span>관찰 기록</span></div>
+            <div class="data-usage-item"><strong id="teacherDataPhotoCount">0</strong><span>사진 파일</span></div>
+            <div class="data-usage-item"><strong id="teacherDataMemberCount">0</strong><span>회원 수</span></div>
+          </div>
+          <div class="data-plan-note">
+            <strong>무료 요금제 기준</strong>
+            <span>데이터베이스 500MB · 파일 저장소 1GB · 월 전송량 5GB</span>
+            <small>정확한 프로젝트 전체 사용량은 Supabase 대시보드에서 확인하세요.</small>
+          </div>
+          <div class="data-action-grid no-print">
+            <button class="btn primary" id="downloadTeacherJsonBtn" type="button">JSON 원본 백업</button>
+            <button class="btn secondary" id="dataPdfBackupBtn" type="button">PDF 보고서</button>
+            <button class="btn ghost" id="dataExcelBackupBtn" type="button">엑셀 데이터</button>
+            <button class="btn ghost" id="openSupabaseUsageBtn" type="button">Supabase 사용량</button>
+          </div>
+          <div id="teacherDataBackupStatus" class="teacher-filter-note">JSON은 복구·보관용, 엑셀은 분석용, PDF는 인쇄·공유용입니다.</div>
+        </div>
+        <div class="card data-danger-card">
+          <h2>데이터 정리</h2>
+          <p class="muted">삭제한 조사 기록과 관찰 사진은 복구할 수 없습니다. 먼저 JSON·엑셀 백업을 권장합니다.</p>
+          <button class="btn danger" id="deleteAllTeacherDataBtn" type="button">전체 조사자료 비우기</button>
         </div>
       </div>
     </section>
@@ -4968,13 +5012,71 @@ svg.leaflet-image-layer.leaflet-interactive path {
     setTeacherTab("students");
   }
 
+  function renderTeacherDataPanel(){
+    const surveys = Array.isArray(teacherHistoryCache) ? teacherHistoryCache : [];
+    const observations = surveys.flatMap(survey=>survey.observations || []);
+    const photoCount = observations.filter(observation=>Boolean(observation.photoPath || observation.photoId)).length;
+    $("teacherDataSurveyCount").textContent = surveys.length;
+    $("teacherDataObservationCount").textContent = observations.length;
+    $("teacherDataPhotoCount").textContent = photoCount;
+    $("teacherDataMemberCount").textContent = Array.isArray(teacherStudents) ? teacherStudents.length : 0;
+    $("teacherDataBackupStatus").textContent = surveys.length
+      ? `현재 ${surveys.length}건의 조사 기록과 ${photoCount}장의 사진 경로를 백업할 수 있습니다. 사진 원본은 JSON에 포함되지 않습니다.`
+      : "백업할 조사 기록이 없습니다.";
+  }
+
+  function downloadTeacherJsonBackup(){
+    const payload = {
+      backupVersion: "schoolforest-v18",
+      exportedAt: new Date().toISOString(),
+      members: (teacherStudents || []).map(member=>({
+        id:member.id,
+        name:member.name,
+        group:member.group || "",
+        role:member.role || "student",
+        loginCode:member.loginCode || "",
+        approvalStatus:member.approvalStatus || ""
+      })),
+      surveys: teacherHistoryCache || []
+    };
+    const blob = new Blob([JSON.stringify(payload,null,2)],{type:"application/json;charset=utf-8"});
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `학교숲_원본백업_${new Date().toISOString().slice(0,10)}.json`;
+    link.click();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+    $("teacherDataBackupStatus").textContent = "JSON 원본 백업을 저장했습니다. 사진 원본은 별도로 보관해야 합니다.";
+  }
+
+  async function deleteAllTeacherData(){
+    if(currentUser?.role !== "owner_teacher") return;
+    const ids = teacherHistoryCache.map(survey=>survey.id).filter(Boolean);
+    if(!ids.length){
+      alert("삭제할 조사 기록이 없습니다.");
+      return;
+    }
+    if(!confirm(`현재 조사 기록 ${ids.length}건과 관찰 사진을 모두 삭제합니다. 먼저 백업했습니까?`)) return;
+    const phrase = prompt("계속하려면 전체삭제를 입력하세요.");
+    if(phrase !== "전체삭제"){
+      alert("삭제가 취소되었습니다.");
+      return;
+    }
+    await deleteTeacherHistoryIds(ids);
+    renderTeacherDataPanel();
+  }
+
   function setTeacherTab(tab){
     const overview = tab === "overview";
+    const students = tab === "students";
+    const data = tab === "data" && currentUser?.role === "owner_teacher";
     $("teacherOverviewPanel").classList.toggle("hidden",!overview);
-    $("teacherStudentsPanel").classList.toggle("hidden",overview);
+    $("teacherStudentsPanel").classList.toggle("hidden",!students);
+    $("teacherDataPanel").classList.toggle("hidden",!data);
     document.querySelectorAll("[data-teacher-tab]").forEach(btn=>
       btn.classList.toggle("active",btn.dataset.teacherTab === tab)
     );
+    if(data) renderTeacherDataPanel();
   }
 
   window.__openHistory = (idx)=>{
@@ -5023,6 +5125,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
     $("teacher-name").classList.toggle("hidden",!loggedIn);
     $("userMenuRole").textContent = isOwner ? "주 교사" : isStudent ? "학생" : "협력 교사";
     document.querySelector('[data-teacher-tab="students"]')?.classList.toggle("hidden",!isOwner);
+    document.querySelector('[data-teacher-tab="data"]')?.classList.toggle("hidden",!isOwner);
     const isCollaboratingTeacher = currentUser?.role === "collaborating_teacher";
     $("teacherDashboardTitle").textContent = isCollaboratingTeacher ? "협력 교사 화면" : "교사 대시보드";
     $("teacherDashboardSubtitle").textContent = isCollaboratingTeacher
@@ -5472,6 +5575,11 @@ svg.leaflet-image-layer.leaflet-interactive path {
   $("applyTeacherFilterBtn").addEventListener("click",applyTeacherFilter);
   $("exportTeacherPdfBtn").addEventListener("click",()=>openTeacherExport("pdf"));
   $("exportTeacherExcelBtn").addEventListener("click",()=>openTeacherExport("excel"));
+  $("downloadTeacherJsonBtn").addEventListener("click",downloadTeacherJsonBackup);
+  $("dataPdfBackupBtn").addEventListener("click",()=>openTeacherExport("pdf"));
+  $("dataExcelBackupBtn").addEventListener("click",()=>openTeacherExport("excel"));
+  $("openSupabaseUsageBtn").addEventListener("click",()=>window.open("https://supabase.com/dashboard/project/gurkqovkziglmpcvjhgl/settings/usage","_blank","noopener"));
+  $("deleteAllTeacherDataBtn").addEventListener("click",deleteAllTeacherData);
   $("closeTeacherExportModal").addEventListener("click",closeTeacherExport);
   $("cancelTeacherExportBtn").addEventListener("click",closeTeacherExport);
   $("confirmTeacherExportBtn").addEventListener("click",confirmTeacherExport);
