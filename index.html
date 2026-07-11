@@ -779,7 +779,13 @@ svg.leaflet-image-layer.leaflet-interactive path {
     .hero-action{padding:18px;font-size:17px}
     .muted{color:var(--muted);font-size:13px;line-height:1.45}
     .hidden{display:none!important}
-    #surveyView{padding-bottom:70px}
+    #surveyView{padding-bottom:70px;display:flex;flex-direction:column}
+    #surveyView > .survey-head{order:1}
+    #surveyView > #liveGpsCard{order:2}
+    #surveyView > #observationsCard{order:3}
+    #surveyView > #submittedReflectionCard{order:4}
+    #surveyView > .route-wrap{order:5}
+    #submittedLocationCard{display:none!important}
     .survey-actions{
       position:fixed;left:50%;bottom:calc(52px + env(safe-area-inset-bottom));
       transform:translateX(-50%);z-index:40;width:min(760px,calc(100% - 24px));
@@ -794,7 +800,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
     .survey-meta-row{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr) minmax(0,1fr);align-items:center;gap:10px;min-width:0}
     .survey-zone-label{font-size:18px;font-weight:900;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
     .survey-time-label{font-size:12px;color:rgba(255,255,255,.78);white-space:nowrap}
-    .survey-weather-label{font-size:13px;font-weight:800;color:#f8df9b;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .survey-weather-label{font-size:12px;font-weight:800;color:#f8df9b;text-align:right;white-space:nowrap;min-width:0}
     .survey-head .sub,.survey-head .muted{color:rgba(255,255,255,.8)}
     .big-number{font-size:28px;font-weight:900}
     .teacher-dashboard-head{background:linear-gradient(135deg,#304b68,#456b8e);color:white;border:0}
@@ -1041,6 +1047,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
     #routeMap .leaflet-control-zoom a{
       width:40px;height:40px;line-height:40px;font-size:24px
     }
+    .route-snapshot{display:block;width:100%;height:320px;object-fit:cover;border:1px solid var(--line);border-radius:14px;background:#eef2ef}
     .map-status{
       position:absolute;left:50%;top:12px;transform:translateX(-50%);
       z-index:1200;max-width:calc(100% - 92px);padding:7px 10px;
@@ -1122,15 +1129,16 @@ svg.leaflet-image-layer.leaflet-interactive path {
       .obs-count{font-size:13px}
       .status-grid{grid-template-columns:1fr 1fr}
       .signup-number-row{gap:6px}
-      .metrics{grid-template-columns:repeat(2,1fr)}
+      .metrics{grid-template-columns:repeat(4,minmax(0,1fr));gap:5px}
       .survey-meta-row{gap:6px}
       .survey-zone-label{font-size:15px}
       .survey-time-label,.survey-weather-label{font-size:11px}
-      .metric{padding:10px 5px}
-      .metric .n{font-size:18px}
+      .metric{padding:8px 3px;border-radius:10px}
+      .metric .n{font-size:16px}
+      .metric .t{font-size:9px;white-space:nowrap}
       .zone-edit-row{grid-template-columns:1fr 38px 38px 38px}
       .mini-btn{height:40px}
-      #routeMap,.map-message{height:300px;min-height:300px}
+      #routeMap,.map-message,.route-snapshot{height:300px;min-height:300px}
       .obs-map-image-wrap{height:200px}
     }
     @media print{
@@ -1407,6 +1415,8 @@ svg.leaflet-image-layer.leaflet-interactive path {
         <h2>조사 이동 경로</h2>
         <div style="position:relative">
           <div id="routeMap" aria-label="조사 이동 경로 지도"></div>
+          <img id="routeSnapshotImage" class="route-snapshot hidden" alt="조사 이동 경로 이미지" />
+          <div id="routeSnapshotStatus" class="map-message hidden">조사 이동 경로 이미지를 준비하는 중입니다.</div>
           <div id="mapStatus" class="map-status">지도 준비 중…</div>
           <div id="routeMapSelectionOverlay" class="route-map-selection hidden" aria-hidden="true">
             <div class="route-map-selection-guide">
@@ -1431,7 +1441,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
         </div>
       </div>
 
-      <div class="card">
+      <div id="observationsCard" class="card">
         <h2>관찰 기록 <span class="tiny hidden" id="obsCountLabel">0건</span></h2>
         <div id="obsList" class="obs-list">
           <div class="muted">아직 기록된 종이 없습니다.</div>
@@ -2564,27 +2574,15 @@ svg.leaflet-image-layer.leaflet-interactive path {
     const draft = isDraftSurvey(currentSurvey);
     $("surveyActions").classList.toggle("hidden",!draft);
     $("liveGpsCard").classList.toggle("hidden",!draft);
-    $("submittedLocationCard").classList.toggle("hidden",draft);
     $("routeMapControls").classList.toggle("hidden",!draft);
+    $("routeMap").classList.toggle("hidden",!draft);
+    $("routeSnapshotImage").classList.toggle("hidden",draft);
+    $("routeSnapshotStatus").classList.toggle("hidden",draft);
 
     $("routePositionLegendText").textContent =
       draft ? "현재 위치" : "조사 종료 위치";
 
-    const endPosition =
-      currentSurvey.endPosition ||
-      currentSurvey.route?.[currentSurvey.route.length-1] ||
-      null;
-
-    if(!draft){
-      $("submittedDistanceText").textContent =
-        Number(currentSurvey.distance || 0) >= 1000
-          ? `${(Number(currentSurvey.distance || 0)/1000).toFixed(2)}km`
-          : `${Math.round(Number(currentSurvey.distance || 0))}m`;
-
-      $("submittedEndPositionText").textContent = endPosition
-        ? `${Number(endPosition.lat).toFixed(6)}, ${Number(endPosition.lon).toFixed(6)}`
-        : "저장된 종료 위치 없음";
-    }
+    if(!draft) hydrateRouteSnapshot();
   }
 
   function renderSurvey(){
@@ -2593,7 +2591,12 @@ svg.leaflet-image-layer.leaflet-interactive path {
       ? formatTime(currentSurvey.startTime,true)
       : currentSurvey.date || "-";
     $("surveyZoneText").textContent = currentSurvey.zone?.name || "미지정";
-    $("surveyWeatherText").textContent = weatherText(currentSurvey.weather);
+    const weather = currentSurvey.weather || {};
+    const weatherSummary = [
+      weather.description,
+      Number.isFinite(Number(weather.temperature)) ? `${weather.temperature}℃` : null
+    ].filter(Boolean).join(" · ");
+    $("surveyWeatherText").textContent = weatherSummary || "날씨 정보 없음";
 
     const reflectionCard = $("submittedReflectionCard");
     if(isSubmittedSurvey(currentSurvey)){
@@ -2815,6 +2818,129 @@ svg.leaflet-image-layer.leaflet-interactive path {
     }catch(e){
       console.warn("지도 캡처 생성 실패, 대체 이미지 사용",e);
       return createFallbackMapSnapshot(lat,lon,accuracy,width,height);
+    }
+  }
+
+  async function generateRouteMapSnapshot(survey){
+    const route = (survey.route || []).filter(point=>Number.isFinite(Number(point.lat)) && Number.isFinite(Number(point.lon)));
+    const observations = (survey.observations || []).filter(point=>Number.isFinite(Number(point.lat)) && Number.isFinite(Number(point.lon)));
+    const start = survey.startPosition && Number.isFinite(Number(survey.startPosition.lat)) ? survey.startPosition : route[0];
+    const end = survey.endPosition && Number.isFinite(Number(survey.endPosition.lat)) ? survey.endPosition : route[route.length-1];
+    const points = [...route,...observations,...(start ? [start] : []),...(end ? [end] : [])];
+    if(!points.length) return null;
+
+    const width = 640;
+    const height = 360;
+    let zoom = 17;
+    let bounds;
+    const getBounds = level=>{
+      const projected = points.map(point=>({
+        x:lonToWorldX(point.lon,level),
+        y:latToWorldY(point.lat,level)
+      }));
+      return {
+        minX:Math.min(...projected.map(point=>point.x)),
+        maxX:Math.max(...projected.map(point=>point.x)),
+        minY:Math.min(...projected.map(point=>point.y)),
+        maxY:Math.max(...projected.map(point=>point.y))
+      };
+    };
+    do{
+      bounds = getBounds(zoom);
+      if((bounds.maxX-bounds.minX) <= width*.72 && (bounds.maxY-bounds.minY) <= height*.72) break;
+      zoom -= 1;
+    }while(zoom > 10);
+
+    const centerX = (bounds.minX + bounds.maxX)/2;
+    const centerY = (bounds.minY + bounds.maxY)/2;
+    const left = centerX - width/2;
+    const top = centerY - height/2;
+    const tileSize = 256;
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#e7eee9";
+    ctx.fillRect(0,0,width,height);
+
+    try{
+      const n = Math.pow(2,zoom);
+      const jobs = [];
+      for(let tileY=Math.floor(top/tileSize);tileY<=Math.floor((top+height-1)/tileSize);tileY++){
+        if(tileY < 0 || tileY >= n) continue;
+        for(let tileX=Math.floor(left/tileSize);tileX<=Math.floor((left+width-1)/tileSize);tileX++){
+          const wrappedX = ((tileX%n)+n)%n;
+          jobs.push(loadMapTile(`https://tile.openstreetmap.org/${zoom}/${wrappedX}/${tileY}.png`).then(img=>({
+            img,dx:Math.round(tileX*tileSize-left),dy:Math.round(tileY*tileSize-top)
+          })));
+        }
+      }
+      const tiles = await Promise.all(jobs);
+      tiles.forEach(tile=>ctx.drawImage(tile.img,tile.dx,tile.dy,tileSize,tileSize));
+    }catch(error){
+      console.warn("조사 경로 이미지 배경을 불러오지 못했습니다.",error);
+    }
+
+    const toCanvasPoint = point=>({
+      x:lonToWorldX(point.lon,zoom)-left,
+      y:latToWorldY(point.lat,zoom)-top
+    });
+    const drawMarker = (point,color,radius)=>{
+      if(!point) return;
+      const p = toCanvasPoint(point);
+      ctx.beginPath();
+      ctx.arc(p.x,p.y,radius,0,Math.PI*2);
+      ctx.fillStyle = color;
+      ctx.fill();
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = "white";
+      ctx.stroke();
+    };
+    if(route.length > 1){
+      ctx.beginPath();
+      route.forEach((point,index)=>{
+        const p = toCanvasPoint(point);
+        index ? ctx.lineTo(p.x,p.y) : ctx.moveTo(p.x,p.y);
+      });
+      ctx.strokeStyle = "#176b4d";
+      ctx.lineWidth = 5;
+      ctx.lineJoin = "round";
+      ctx.lineCap = "round";
+      ctx.stroke();
+    }
+    drawMarker(start,"#176b4d",7);
+    drawMarker(end,"#2474d2",8);
+    observations.forEach(point=>drawMarker(point,"#d94841",7));
+
+    ctx.fillStyle = "rgba(255,255,255,.92)";
+    ctx.fillRect(10,10,230,32);
+    ctx.fillStyle = "#23362d";
+    ctx.font = "700 14px system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif";
+    ctx.fillText("조사 이동 경로",18,31);
+    ctx.font = "600 11px system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif";
+    ctx.fillStyle = "#34483e";
+    ctx.fillText("● 시작   ● 종료   ● 관찰 위치",18,height-14);
+    return canvasToBlob(canvas,"image/jpeg",.88);
+  }
+
+  async function hydrateRouteSnapshot(){
+    const image = $("routeSnapshotImage");
+    const status = $("routeSnapshotStatus");
+    if(!image || !status || !currentSurvey || isDraftSurvey(currentSurvey)) return;
+    status.classList.remove("hidden");
+    status.textContent = "조사 이동 경로 이미지를 준비하는 중입니다…";
+    try{
+      const blob = await generateRouteMapSnapshot(currentSurvey);
+      if(!blob) throw new Error("저장된 이동 경로가 없습니다.");
+      const url = URL.createObjectURL(blob);
+      image.onload = ()=>{
+        image.classList.remove("hidden");
+        status.classList.add("hidden");
+      };
+      image.src = url;
+    }catch(error){
+      status.textContent = "조사 이동 경로 이미지를 표시하지 못했습니다.";
+      console.warn("조사 이동 경로 이미지 생성 실패",error);
     }
   }
 
@@ -3250,7 +3376,9 @@ svg.leaflet-image-layer.leaflet-interactive path {
   }
 
   function drawRoute(){
-    if(!currentSurvey || !ensureMap()) return;
+    if(!currentSurvey) return;
+    if(!isDraftSurvey(currentSurvey) && $("routeMap").classList.contains("hidden")) return;
+    if(!ensureMap()) return;
 
     setTimeout(()=>routeMap.invalidateSize(),80);
     const route = currentSurvey.route || [];
