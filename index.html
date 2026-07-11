@@ -998,6 +998,12 @@ svg.leaflet-image-layer.leaflet-interactive path {
       padding:11px 12px;border-radius:12px;font-size:12px;line-height:1.5
     }
     .history-item{border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:9px}
+    .history-item.selected{border-color:#2f6b4f;background:#f0f8f3;box-shadow:0 0 0 2px rgba(47,107,79,.12)}
+    .history-toolbar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:-4px 0 12px}
+    .history-toolbar .btn{padding:7px 10px;font-size:11px;min-width:0}
+    .history-selection-hint{margin-right:auto;color:var(--muted);font-size:11px}
+    .history-select-box{width:24px;height:24px;border:1px solid #a9c8b5;border-radius:7px;background:white;color:#176b4d;font-weight:900;display:grid;place-items:center;flex:0 0 auto}
+    .history-title-row{display:flex;align-items:center;gap:8px;justify-content:space-between}
     .history-title{font-weight:900;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
     .history-meta{font-size:12px;color:var(--muted);margin-top:4px;line-height:1.45}
     .submission-badge{
@@ -1461,6 +1467,13 @@ svg.leaflet-image-layer.leaflet-interactive path {
     <section id="historyView" class="hidden">
       <div class="card">
         <h2>저장된 조사 기록</h2>
+        <div id="historyToolbar" class="history-toolbar hidden">
+          <button class="btn ghost" id="historySelectModeBtn" type="button">선택</button>
+          <span id="historySelectionHint" class="history-selection-hint hidden">기록을 선택하세요</span>
+          <button class="btn ghost" id="historySelectAllBtn" type="button">전체 선택</button>
+          <button class="btn danger" id="historyDeleteSelectedBtn" type="button">선택 삭제</button>
+          <button class="btn ghost" id="historyCancelSelectBtn" type="button">취소</button>
+        </div>
         <div id="historyList"><div class="muted">저장된 기록이 없습니다.</div></div>
       </div>
     </section>
@@ -1881,6 +1894,8 @@ svg.leaflet-image-layer.leaflet-interactive path {
   let recoveryMode = false;
   let signupInProgress = false;
   let currentSurvey = loadJson(STORAGE.draft, null);
+  let historySelectionMode = false;
+  let selectedHistoryIndices = new Set();
   let routeWatchId = null;
   let timerId = null;
   let lastLivePosition = null;
@@ -3990,7 +4005,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
     alert("조사 기록이 최종 제출되었습니다.");
   }
 
-  function renderHistory(){
+  function renderHistoryLegacy(){
     const history = loadJson(STORAGE.history,[]);
     const list = $("historyList");
     if(!history.length){
@@ -4018,6 +4033,122 @@ svg.leaflet-image-layer.leaflet-interactive path {
       `;
     }).join("");
   }
+
+  function isHistoryDeletable(survey){
+    return Boolean(survey) && !isSubmittedSurvey(survey);
+  }
+
+  function updateHistoryToolbar(history=[]){
+    const toolbar = $("historyToolbar");
+    if(!toolbar) return;
+    const deletableCount = history.filter(isHistoryDeletable).length;
+    toolbar.classList.toggle("hidden",!deletableCount);
+    const selectedCount = selectedHistoryIndices.size;
+    $("historySelectModeBtn").classList.toggle("hidden",historySelectionMode);
+    $("historySelectionHint").classList.toggle("hidden",!historySelectionMode);
+    $("historySelectAllBtn").classList.toggle("hidden",!historySelectionMode);
+    $("historyDeleteSelectedBtn").classList.toggle("hidden",!historySelectionMode);
+    $("historyCancelSelectBtn").classList.toggle("hidden",!historySelectionMode);
+    $("historySelectionHint").textContent = selectedCount ? `${selectedCount}건 선택됨` : "기록을 선택하세요";
+    $("historyDeleteSelectedBtn").disabled = selectedCount === 0;
+    $("historySelectAllBtn").textContent = selectedCount === deletableCount ? "전체 해제" : "전체 선택";
+  }
+
+  function attachHistoryLongPressHandlers(){
+    document.querySelectorAll(".history-item[data-history-index]").forEach(item=>{
+      const idx = Number(item.dataset.historyIndex);
+      if(!Number.isInteger(idx) || !item.dataset.deletable) return;
+      let timer = null;
+      const clearTimer = ()=>{
+        if(timer){clearTimeout(timer);timer=null;}
+      };
+      item.addEventListener("pointerdown",event=>{
+        if(historySelectionMode || event.target.closest("button")) return;
+        timer = setTimeout(()=>{
+          historySelectionMode = true;
+          selectedHistoryIndices.add(idx);
+          renderHistory();
+        },1000);
+      });
+      ["pointerup","pointercancel","pointerleave"].forEach(type=>item.addEventListener(type,clearTimer));
+      item.addEventListener("click",event=>{
+        if(!historySelectionMode || event.target.closest("button")) return;
+        selectedHistoryIndices.has(idx) ? selectedHistoryIndices.delete(idx) : selectedHistoryIndices.add(idx);
+        renderHistory();
+      });
+    });
+  }
+
+  function renderHistory(){
+    const history = loadJson(STORAGE.history,[]);
+    const list = $("historyList");
+    if(!history.length){
+      historySelectionMode = false;
+      selectedHistoryIndices.clear();
+      updateHistoryToolbar(history);
+      list.innerHTML = `<div class="muted">저장된 조사 기록이 없습니다.</div>`;
+      return;
+    }
+    const deletableCount = history.filter(isHistoryDeletable).length;
+    if(!deletableCount){
+      historySelectionMode = false;
+      selectedHistoryIndices.clear();
+    }
+    selectedHistoryIndices = new Set([...selectedHistoryIndices].filter(idx=>isHistoryDeletable(history[idx])));
+    updateHistoryToolbar(history);
+    list.innerHTML = history.map((s,idx)=>{
+      const uniqueSpecies = new Set((s.observations||[]).map(o=>String(o.species || "").trim().toLowerCase())).size;
+      const total = (s.observations||[]).reduce((a,o)=>a+Number(o.count||0),0);
+      const deletable = isHistoryDeletable(s);
+      return `
+        <div class="history-item${selectedHistoryIndices.has(idx) ? " selected" : ""}" data-history-index="${idx}" ${deletable ? "data-deletable=\"true\"" : ""}>
+          <div class="history-title-row">
+            <div class="history-title">
+              <span>${escapeHtml(s.date)} · ${escapeHtml(s.zone?.name || "미지정")}</span>
+              ${isSubmittedSurvey(s) ? `<span class="submission-badge">최종 제출 완료</span>` : `<span class="tiny">조사 중</span>`}
+            </div>
+            ${historySelectionMode && deletable ? `<button type="button" class="history-select-box" onclick="window.__toggleHistorySelection(${idx})" aria-label="기록 선택">${selectedHistoryIndices.has(idx) ? "✓" : ""}</button>` : ""}
+          </div>
+          <div class="history-meta">
+            ${escapeHtml(s.participant)} · ${formatTime(s.startTime)}~${formatTime(s.endTime)} · ${uniqueSpecies}종 ${total}개체 · ${(s.observations||[]).length}건
+            ${s.submittedAt ? `<br>제출: ${formatTime(s.submittedAt,true)}` : ""}
+            ${s.reflection ? `<br>소감: ${escapeHtml(s.reflection.length > 70 ? s.reflection.slice(0,70)+"…" : s.reflection)}` : ""}
+          </div>
+          <div class="btn-row" style="margin-top:10px">
+            <button class="btn ghost" onclick="window.__openHistory(${idx})">제출 내용 보기</button>
+            ${deletable && !historySelectionMode ? `<button class="btn danger" onclick="window.__deleteHistory(${idx})">삭제</button>` : ""}
+          </div>
+        </div>
+      `;
+    }).join("");
+    attachHistoryLongPressHandlers();
+  }
+
+  window.__toggleHistorySelection = idx=>{
+    if(!historySelectionMode) return;
+    selectedHistoryIndices.has(idx) ? selectedHistoryIndices.delete(idx) : selectedHistoryIndices.add(idx);
+    renderHistory();
+  };
+
+  async function deleteHistoryIndices(indices){
+    const history = loadJson(STORAGE.history,[]);
+    const targets = [...new Set(indices)].filter(idx=>isHistoryDeletable(history[idx]));
+    if(!targets.length) return;
+    if(!confirm(`${targets.length}건의 조사 기록을 삭제할까요? 사진도 함께 삭제됩니다.`)) return;
+    for(const idx of targets.sort((a,b)=>b-a)){
+      const removed = history.splice(idx,1)[0];
+      for(const observation of (removed?.observations || [])){
+        if(observation.photoId) await deletePhoto(observation.photoId);
+        if(observation.mapSnapshotId) await deletePhoto(observation.mapSnapshotId);
+      }
+    }
+    saveJson(STORAGE.history,history);
+    selectedHistoryIndices.clear();
+    historySelectionMode = false;
+    renderHistory();
+  }
+
+  window.__deleteSelectedHistory = ()=>deleteHistoryIndices([...selectedHistoryIndices]);
 
   function normalizeRemoteSurvey(row){
     return {
@@ -4750,22 +4881,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
     $("finishSurveyBtn").classList.add("hidden");
   };
 
-  window.__deleteHistory = async (idx)=>{
-    const history = loadJson(STORAGE.history,[]);
-    const target = history[idx];
-    if(isSubmittedSurvey(target)){
-      alert("최종 제출된 조사 기록은 학생 화면에서 삭제할 수 없습니다.");
-      return;
-    }
-    if(!confirm("이 조사 기록을 삭제할까요? 사진도 함께 삭제됩니다.")) return;
-    const removed = history.splice(idx,1)[0];
-    for(const o of (removed?.observations || [])){
-      if(o.photoId) await deletePhoto(o.photoId);
-      if(o.mapSnapshotId) await deletePhoto(o.mapSnapshotId);
-    }
-    saveJson(STORAGE.history,history);
-    renderHistory();
-  };
+  window.__deleteHistory = idx=>deleteHistoryIndices([idx]);
 
   function renderAuthSession(){
     const loggedIn = Boolean(currentUser);
@@ -5184,6 +5300,24 @@ svg.leaflet-image-layer.leaflet-interactive path {
     $("userMenuBtn").classList.toggle("open",!isOpen);
   });
   $("logoutBtn").addEventListener("click",logout);
+  $("historySelectAllBtn").addEventListener("click",()=>{
+    const history = loadJson(STORAGE.history,[]);
+    const deletable = history.map((item,idx)=>isHistoryDeletable(item) ? idx : null).filter(idx=>idx !== null);
+    if(selectedHistoryIndices.size === deletable.length) selectedHistoryIndices.clear();
+    else selectedHistoryIndices = new Set(deletable);
+    renderHistory();
+  });
+  $("historySelectModeBtn").addEventListener("click",()=>{
+    historySelectionMode = true;
+    selectedHistoryIndices.clear();
+    renderHistory();
+  });
+  $("historyDeleteSelectedBtn").addEventListener("click",()=>deleteHistoryIndices([...selectedHistoryIndices]));
+  $("historyCancelSelectBtn").addEventListener("click",()=>{
+    historySelectionMode = false;
+    selectedHistoryIndices.clear();
+    renderHistory();
+  });
   document.addEventListener("click",e=>{
     if(!$("userMenu").contains(e.target) && !$("userMenuBtn").contains(e.target)){
       $("userMenu").classList.add("hidden");
