@@ -710,7 +710,12 @@ svg.leaflet-image-layer.leaflet-interactive path {
       background:white;color:var(--text);display:grid;place-items:center;font-size:18px
     }
     .header-tools{display:flex;align-items:center;gap:8px;min-width:0}
-    .teacher-name{padding-left:8px;border-left:1px solid var(--line);font-size:11px;font-weight:900;color:#2f6b4f;white-space:nowrap}
+    .user-chip{display:flex;align-items:center;gap:4px;border:0;background:transparent;padding:6px 4px;color:var(--text);min-width:0}
+    .teacher-name{font-size:11px;font-weight:900;color:#2f6b4f;white-space:nowrap}
+    .user-menu-caret{font-size:12px;color:var(--muted);line-height:1}
+    .user-menu{position:fixed;right:16px;top:68px;z-index:80;min-width:154px;padding:8px;border:1px solid var(--line);border-radius:14px;background:white;box-shadow:0 10px 28px rgba(28,53,39,.16)}
+    .user-menu-role{padding:7px 9px 9px;color:var(--muted);font-size:11px;border-bottom:1px solid var(--line)}
+    .user-menu button{width:100%;margin-top:6px;border:0;border-radius:10px;padding:9px;background:#fff3f1;color:var(--bad);font-weight:900;font-size:12px}
     .auth-view{max-width:440px;margin:28px auto 0}
     .auth-card{padding:24px;background:linear-gradient(145deg,#f8fbf8,#eef6f0);border:1px solid #cfe1d3}
     .auth-brand{display:flex;align-items:center;gap:10px;margin-bottom:18px}
@@ -1082,6 +1087,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
       .brand-school{font-size:10px}
       .header-tools{gap:5px}
       .teacher-name{font-size:10px;padding-left:5px}
+      .user-menu{right:12px;top:60px}
       .icon-btn{width:36px;height:36px;font-size:16px}
       .teacher-summary-line{grid-template-columns:repeat(4,minmax(0,1fr));gap:4px}
       .teacher-summary-item span{font-size:9px}
@@ -1123,11 +1129,18 @@ svg.leaflet-image-layer.leaflet-interactive path {
       </div>
     </div>
     <div class="header-tools">
-      <span id="teacher-name" class="teacher-name">숲선생님 박은경</span>
-      <button class="icon-btn hidden" id="logoutBtn" aria-label="로그아웃">↪</button>
+      <button class="user-chip hidden" id="userMenuBtn" type="button" aria-label="사용자 메뉴">
+        <span id="teacher-name" class="teacher-name">숲선생님 박은경</span>
+        <span class="user-menu-caret">⌄</span>
+      </button>
       <button class="icon-btn" id="settingsBtn" aria-label="설정">⚙️</button>
     </div>
   </header>
+
+  <div id="userMenu" class="user-menu hidden">
+    <div id="userMenuRole" class="user-menu-role">로그인 사용자</div>
+    <button id="logoutBtn" type="button">로그아웃</button>
+  </div>
 
   <main>
     <div id="secureBanner" class="banner hidden"></div>
@@ -1183,7 +1196,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
 
     <section id="homeView">
       <div class="card">
-        <h2>조사 준비</h2>
+        <h2 id="homeModeTitle">조사 준비</h2>
         <div class="form-group">
           <label for="participant">참여자</label>
           <input id="participant" type="text" placeholder="이름 또는 모둠명을 입력하세요" autocomplete="name" />
@@ -1346,8 +1359,8 @@ svg.leaflet-image-layer.leaflet-interactive path {
     <section id="teacherView" class="hidden">
       <div class="card teacher-dashboard-head">
         <div class="sub">교사용 관리 화면</div>
-        <div class="big-number">교사 대시보드</div>
-        <div class="sub">조사 구간과 학생 조사 기록을 확인합니다.</div>
+        <div class="big-number" id="teacherDashboardTitle">교사 대시보드</div>
+        <div class="sub" id="teacherDashboardSubtitle">조사 구간과 학생 조사 기록을 확인합니다.</div>
         <div class="btn-row" style="margin-top:14px">
           <button class="btn ghost" id="teacherBackHomeBtn">학생 화면</button>
           <button class="btn secondary" id="openTeacherSettingsBtn">조사 구간 설정</button>
@@ -3839,16 +3852,25 @@ svg.leaflet-image-layer.leaflet-interactive path {
     const loggedIn = Boolean(currentUser);
     const isStudent = currentUser?.role === "student";
     const isOwner = currentUser?.role === "owner_teacher";
-    $("settingsBtn").classList.toggle("hidden",!loggedIn || isStudent);
-    $("logoutBtn").classList.toggle("hidden",!loggedIn);
+    $("settingsBtn").classList.toggle("hidden",!loggedIn || !isOwner);
+    $("userMenuBtn").classList.toggle("hidden",!loggedIn);
+    $("userMenu").classList.add("hidden");
     $("teacher-name").textContent = isOwner
       ? "숲선생님 박은경"
       : currentUser?.role === "collaborating_teacher"
         ? `${currentUser.name} · 협력 교사`
         : currentUser?.name || "";
     $("teacher-name").classList.toggle("hidden",!loggedIn);
+    $("userMenuRole").textContent = isOwner ? "주 교사" : isStudent ? "학생" : "협력 교사";
     $("openTeacherSettingsBtn").classList.toggle("hidden",!isOwner);
     document.querySelector('[data-teacher-tab="students"]')?.classList.toggle("hidden",!isOwner);
+    const isCollaboratingTeacher = currentUser?.role === "collaborating_teacher";
+    $("teacherDashboardTitle").textContent = isCollaboratingTeacher ? "협력 교사 화면" : "교사 대시보드";
+    $("teacherDashboardSubtitle").textContent = isCollaboratingTeacher
+      ? "학생 조사 기록을 확인하고 조사에 참여합니다."
+      : "조사 구간과 학생 조사 기록을 확인합니다.";
+    $("teacherBackHomeBtn").textContent = isCollaboratingTeacher ? "조사 참여" : "학생 화면";
+    $("homeModeTitle").textContent = isCollaboratingTeacher ? "조사 참여" : "조사 준비";
   }
 
   function showLoginPanel(){
@@ -4003,7 +4025,13 @@ svg.leaflet-image-layer.leaflet-interactive path {
   $("showSignupBtn").addEventListener("click",showSignupPanel);
   $("showLoginBtn").addEventListener("click",showLoginPanel);
   $("submitSignupBtn").addEventListener("click",submitSignup);
+  $("userMenuBtn").addEventListener("click",()=>$("userMenu").classList.toggle("hidden"));
   $("logoutBtn").addEventListener("click",logout);
+  document.addEventListener("click",e=>{
+    if(!$("userMenu").contains(e.target) && !$("userMenuBtn").contains(e.target)){
+      $("userMenu").classList.add("hidden");
+    }
+  });
   $("startSurveyBtn").addEventListener("click",startSurvey);
   $("addObservationBtn").addEventListener("click",openObservationModal);
   $("finishSurveyBtn").addEventListener("click",openFinishModal);
