@@ -791,6 +791,13 @@ svg.leaflet-image-layer.leaflet-interactive path {
     .teacher-filter-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}
     .teacher-filter-row select{min-width:0;padding:9px 10px;font-size:12px}
     .teacher-filter-note{margin-top:8px;font-size:11px;color:var(--muted)}
+    .teacher-filter-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px;padding-top:10px;border-top:1px solid var(--line)}
+    .teacher-filter-summary{min-width:0;color:var(--muted);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .teacher-filter-summary strong{color:var(--primary-2)}
+    .teacher-filter-toolbar .btn{flex:0 0 auto;padding:8px 12px;font-size:12px}
+    .teacher-summary-line{display:flex;align-items:center;justify-content:space-between;gap:8px;overflow-x:auto;white-space:nowrap;padding:2px 0}
+    .teacher-summary-line span{color:var(--muted);font-size:11px;font-weight:800}
+    .teacher-summary-line strong{margin-left:3px;color:var(--primary-2);font-size:16px;font-weight:900}
     @media (max-width:520px){
       .teacher-filter-row{grid-template-columns:1fr 1fr}
     }
@@ -1293,39 +1300,15 @@ svg.leaflet-image-layer.leaflet-interactive path {
       <div id="teacherOverviewPanel">
         <div class="card">
           <h2>전체 조사 현황</h2>
-          <div class="metrics">
-            <div class="metric">
-              <div class="n" id="teacherZoneCountText">0</div>
-              <div class="t">조사 구간</div>
-            </div>
-            <div class="metric">
-              <div class="n" id="teacherSurveyCountText">0</div>
-              <div class="t">저장 조사</div>
-            </div>
-            <div class="metric">
-              <div class="n" id="teacherSubmittedCountText">0</div>
-              <div class="t">최종 제출</div>
-            </div>
-            <div class="metric">
-              <div class="n" id="teacherObservationCountText">0</div>
-              <div class="t">관찰 기록</div>
-            </div>
+          <div class="teacher-summary-line" aria-label="전체 조사 요약">
+            <span>등록 구간 <strong id="teacherZoneCountText">0</strong></span>
+            <span>저장 조사 <strong id="teacherSurveyCountText">0</strong></span>
+            <span>제출 완료 <strong id="teacherSubmittedCountText">0</strong></span>
+            <span>관찰 기록 <strong id="teacherObservationCountText">0</strong></span>
           </div>
-          <div class="teacher-filter-row">
-            <select id="teacherFilterStudent" aria-label="학생별 필터">
-              <option value="">전체 학생</option>
-            </select>
-            <select id="teacherFilterSpecies" aria-label="종별 필터">
-              <option value="">전체 종</option>
-            </select>
-            <select id="teacherFilterZone" aria-label="조사 구간별 필터">
-              <option value="">전체 구간</option>
-            </select>
-            <select id="teacherFilterStatus" aria-label="상태별 필터">
-              <option value="">전체 상태</option>
-              <option value="submitted">최종 제출</option>
-              <option value="draft">조사 중</option>
-            </select>
+          <div class="teacher-filter-toolbar">
+            <div id="teacherFilterSummary" class="teacher-filter-summary">전체 조건</div>
+            <button class="btn ghost" id="openTeacherFilterBtn" type="button">필터</button>
           </div>
           <div id="teacherFilterNote" class="teacher-filter-note">전체 조사 기록을 표시합니다.</div>
         </div>
@@ -1581,6 +1564,36 @@ svg.leaflet-image-layer.leaflet-interactive path {
       <textarea id="studentMemoInput" placeholder="학생 관련 메모를 입력하세요"></textarea>
     </div>
     <button class="btn primary block" id="saveStudentBtn">학생 저장</button>
+  </div>
+</div>
+
+<div id="teacherFilterModal" class="modal hidden">
+  <div class="sheet">
+    <div class="sheet-head">
+      <h3>조사 기록 필터</h3>
+      <button class="icon-btn" id="closeTeacherFilterModal">✕</button>
+    </div>
+    <p class="muted">원하는 조건을 선택하면 전체 조사 현황과 기록 목록에 함께 적용됩니다.</p>
+    <div class="teacher-filter-row">
+      <select id="teacherFilterStudent" aria-label="학생별 필터">
+        <option value="">전체 학생</option>
+      </select>
+      <select id="teacherFilterSpecies" aria-label="종별 필터">
+        <option value="">전체 종</option>
+      </select>
+      <select id="teacherFilterZone" aria-label="조사 구간별 필터">
+        <option value="">전체 구간</option>
+      </select>
+      <select id="teacherFilterStatus" aria-label="상태별 필터">
+        <option value="">전체 상태</option>
+        <option value="submitted">최종 제출</option>
+        <option value="draft">조사 중</option>
+      </select>
+    </div>
+    <div class="btn-row" style="margin-top:14px">
+      <button class="btn ghost" id="resetTeacherFilterBtn" type="button">전체 해제</button>
+      <button class="btn primary" id="applyTeacherFilterBtn" type="button">필터 적용</button>
+    </div>
   </div>
 </div>
 
@@ -3476,6 +3489,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
     $("teacherFilterNote").textContent = filteredHistory.length === history.length
       ? `전체 조사 기록 ${history.length}건을 표시합니다.`
       : `전체 ${history.length}건 중 ${filteredHistory.length}건을 표시합니다.`;
+    renderTeacherFilterSummary();
 
     const list = $("teacherHistoryList");
     if(!filteredHistory.length){
@@ -3535,6 +3549,38 @@ svg.leaflet-image-layer.leaflet-interactive path {
         (!zone || String(survey.zone?.name || "").trim() === zone) &&
         statusMatch;
     });
+  }
+
+  function renderTeacherFilterSummary(){
+    const labels = [
+      ["teacherFilterStudent","학생"],
+      ["teacherFilterSpecies","종"],
+      ["teacherFilterZone","구간"],
+      ["teacherFilterStatus","상태"]
+    ].filter(([id])=>$(id).value).map(([id,label])=>`${label}: ${$(id).selectedOptions[0].textContent}`);
+    $("teacherFilterSummary").innerHTML = labels.length
+      ? `<strong>현재 조건</strong> · ${labels.map(escapeHtml).join(" · ")}`
+      : "전체 조건";
+  }
+
+  function openTeacherFilter(){
+    $("teacherFilterModal").classList.remove("hidden");
+  }
+
+  function closeTeacherFilter(){
+    $("teacherFilterModal").classList.add("hidden");
+  }
+
+  function resetTeacherFilter(){
+    ["teacherFilterStudent","teacherFilterSpecies","teacherFilterZone","teacherFilterStatus"]
+      .forEach(id=>$(id).value="");
+    renderTeacherDashboard();
+    closeTeacherFilter();
+  }
+
+  function applyTeacherFilter(){
+    renderTeacherDashboard();
+    closeTeacherFilter();
   }
 
   function renderTeacherStudents(history){
@@ -3784,9 +3830,10 @@ svg.leaflet-image-layer.leaflet-interactive path {
   document.querySelectorAll("[data-teacher-tab]").forEach(btn=>
     btn.addEventListener("click",()=>setTeacherTab(btn.dataset.teacherTab))
   );
-  document.querySelectorAll("[id^='teacherFilter']").forEach(select=>
-    select.addEventListener("change",renderTeacherDashboard)
-  );
+  $("openTeacherFilterBtn").addEventListener("click",openTeacherFilter);
+  $("closeTeacherFilterModal").addEventListener("click",closeTeacherFilter);
+  $("resetTeacherFilterBtn").addEventListener("click",resetTeacherFilter);
+  $("applyTeacherFilterBtn").addEventListener("click",applyTeacherFilter);
   $("addStudentBtn").addEventListener("click",()=>window.__openStudentEditor(""));
   $("closeStudentModal").addEventListener("click",()=>$("studentModal").classList.add("hidden"));
   $("saveStudentBtn").addEventListener("click",saveTeacherStudent);
