@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#176b4d" />
-  <title>백로류 모니터링 조사일지 v6</title>
+  <title>학교숲 시민과학자</title>
 <style>
 /* Leaflet 1.9.4 - 로컬 내장 */
 /* required styles */
@@ -765,9 +765,11 @@ svg.leaflet-image-layer.leaflet-interactive path {
     .obs{
       border:1px solid var(--line);border-radius:15px;padding:13px;background:#fbfcfb
     }
-    .obs-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
-    .obs-name{font-weight:900;font-size:16px}
-    .obs-count{font-weight:900;color:var(--primary)}
+    .obs{position:relative;isolation:isolate;overflow:hidden}
+    .obs-top{display:block;min-width:0}
+    .obs-heading{display:flex;align-items:baseline;gap:9px;min-width:0;flex-wrap:nowrap}
+    .obs-name{font-weight:900;font-size:16px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .obs-count{font-weight:900;color:var(--primary);white-space:nowrap;flex:0 0 auto;font-size:15px}
     .obs-meta{font-size:12px;color:var(--muted);margin-top:6px;line-height:1.5}
     .obs-habitat{margin-top:8px;font-size:13px;line-height:1.5}
     .chips{display:flex;flex-wrap:wrap;gap:7px}
@@ -775,13 +777,16 @@ svg.leaflet-image-layer.leaflet-interactive path {
       border:1px solid var(--line);background:white;border-radius:999px;padding:8px 11px;font-size:13px
     }
     .chip.active{background:var(--soft);border-color:#8fc4aa;color:var(--primary-2);font-weight:800}
+    .other-habitat{margin-top:9px}
+    .other-habitat input{background:#fff}
     .counter{display:grid;grid-template-columns:58px 1fr 58px;gap:8px;align-items:center}
     .counter button{height:48px;border:1px solid var(--line);background:white;border-radius:12px;font-size:24px}
     .counter input{text-align:center;font-size:20px;font-weight:900;height:48px}
     .modal{
-      position:fixed;inset:0;background:rgba(7,20,13,.48);z-index:50;
-      display:flex;align-items:flex-end;justify-content:center;padding:0
+      position:fixed;inset:0;background:rgba(7,20,13,.48);z-index:10000;
+      isolation:isolate;display:flex;align-items:flex-end;justify-content:center;padding:0
     }
+    .modal .sheet{position:relative;z-index:10001}
     .sheet{
       width:min(760px,100%);max-height:92vh;overflow:auto;background:white;
       border-radius:22px 22px 0 0;padding:18px 16px 26px;box-shadow:0 -16px 40px rgba(0,0,0,.18)
@@ -884,8 +889,11 @@ svg.leaflet-image-layer.leaflet-interactive path {
       font-size:12px;font-weight:800;color:var(--muted)
     }
     .obs-mini-map{
+      position:relative;isolation:isolate;z-index:0;overflow:hidden;
       width:100%;height:210px;background:#e9efeb;touch-action:none
     }
+    .obs-mini-map .leaflet-pane,
+    .obs-mini-map .leaflet-control-container{z-index:auto}
     .obs-mini-map .leaflet-control-attribution{
       font-size:8px!important;line-height:1.1!important
     }
@@ -922,8 +930,8 @@ svg.leaflet-image-layer.leaflet-interactive path {
     <div class="title-wrap">
       <div class="logo">鳥</div>
       <div>
-        <h1>백로류 모니터링 조사일지</h1>
-        <div class="sub">모바일 현장 조사 기록 · 관찰지도 v6</div>
+        <h1>학교숲 시민과학자</h1>
+        <div class="sub">모바일 생태 조사 기록 · v8</div>
       </div>
     </div>
     <button class="icon-btn" id="settingsBtn" aria-label="설정">⚙️</button>
@@ -1154,6 +1162,12 @@ svg.leaflet-image-layer.leaflet-interactive path {
         <button type="button" class="chip">휴식</button>
         <button type="button" class="chip">비행</button>
         <button type="button" class="chip">번식</button>
+        <button type="button" class="chip" id="habitatOtherChip" data-other="true">기타 직접 입력</button>
+      </div>
+      <div id="habitatOtherWrap" class="other-habitat hidden">
+        <input id="habitatOther" type="text"
+          placeholder="출현지역 또는 서식 특성을 직접 입력하세요"
+          maxlength="80" />
       </div>
     </div>
 
@@ -1914,15 +1928,15 @@ svg.leaflet-image-layer.leaflet-interactive path {
     }
     list.innerHTML = obs.map((o,idx)=>`
       <article class="obs">
-        ${o.photoId ? `<img class="obs-photo" data-photo-id="${escapeHtml(o.photoId)}" alt="${escapeHtml(o.species)} 사진">` : ""}
+        ${o.photoId ? `<img class="obs-photo hidden" data-photo-id="${escapeHtml(o.photoId)}" alt="${escapeHtml(o.species)} 사진">` : ""}
         <div class="obs-top">
-          <div>
+          <div class="obs-heading">
             <div class="obs-name">${escapeHtml(o.species)}</div>
-            <div class="obs-meta">
-              ${formatTime(o.time,true)} · GPS ${o.lat.toFixed(6)}, ${o.lon.toFixed(6)} · 정확도 ±${Math.round(o.accuracy)}m
-            </div>
+            <div class="obs-count">${o.count}개체</div>
           </div>
-          <div class="obs-count">${o.count}개체</div>
+          <div class="obs-meta">
+            ${formatTime(o.time,true)} · GPS ${o.lat.toFixed(6)}, ${o.lon.toFixed(6)} · 정확도 ±${Math.round(o.accuracy)}m
+          </div>
         </div>
         <div class="obs-habitat">
           ${o.tags?.length ? `<div class="tiny">${o.tags.map(escapeHtml).join(" · ")}</div>` : ""}
@@ -1930,9 +1944,8 @@ svg.leaflet-image-layer.leaflet-interactive path {
         </div>
         <div class="obs-map-shell">
           <div class="obs-map-title">
-            기록 당시 지도 · 중심 ${Number(o.mapView?.centerLat ?? o.lat).toFixed(6)},
-            ${Number(o.mapView?.centerLon ?? o.lon).toFixed(6)}
-            · 확대 ${Number(o.mapView?.zoom ?? 18)}
+            관찰 위치 · ${Number(o.lat).toFixed(6)}, ${Number(o.lon).toFixed(6)}
+            · 정확도 ±${Math.round(Number(o.accuracy || 0))}m
           </div>
           <div id="obsMap-${idx}" class="obs-mini-map" data-observation-index="${idx}"
             aria-label="${escapeHtml(o.species)} 관찰 위치 지도"></div>
@@ -1963,11 +1976,8 @@ svg.leaflet-image-layer.leaflet-interactive path {
         const o = currentSurvey.observations?.[idx];
         if(!o || !Number.isFinite(Number(o.lat)) || !Number.isFinite(Number(o.lon))) return;
 
-        const center = [
-          Number(o.mapView?.centerLat ?? o.lat),
-          Number(o.mapView?.centerLon ?? o.lon)
-        ];
-        const zoom = Math.max(3,Math.min(19,Number(o.mapView?.zoom ?? 18)));
+        const point = [Number(o.lat),Number(o.lon)];
+        const zoom = 18;
 
         const miniMap = L.map(el,{
           zoomControl:false,
@@ -1980,7 +1990,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
           keyboard:false,
           tap:false,
           preferCanvas:true
-        }).setView(center,zoom);
+        }).setView(point,zoom);
 
         L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{
           maxZoom:19,
@@ -1990,32 +2000,23 @@ svg.leaflet-image-layer.leaflet-interactive path {
           attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         }).addTo(miniMap);
 
-        const routeCount = Number.isInteger(Number(o.routePointCount))
-          ? Number(o.routePointCount)
-          : (currentSurvey.route || []).length;
-        const routeAtObservation = (currentSurvey.route || [])
-          .slice(0,Math.max(1,routeCount))
-          .map(p=>[p.lat,p.lon]);
-
-        if(routeAtObservation.length >= 2){
-          L.polyline(routeAtObservation,{
-            color:"#176b4d",weight:4,opacity:.85,interactive:false
-          }).addTo(miniMap);
-        }
-
-        L.circle([o.lat,o.lon],{
+        // 관찰 기록 지도에는 이동 경로를 넣지 않고, 해당 관찰 지점만 표시합니다.
+        L.circle(point,{
           radius:Math.max(1,Number(o.accuracy || 1)),
-          color:"#d94841",weight:1,fillColor:"#d94841",fillOpacity:.13,
+          color:"#d94841",weight:1.5,fillColor:"#d94841",fillOpacity:.12,
           interactive:false
         }).addTo(miniMap);
 
-        L.circleMarker([o.lat,o.lon],{
+        L.circleMarker(point,{
           radius:8,color:"#ffffff",weight:3,
           fillColor:"#d94841",fillOpacity:1,
           interactive:false
         }).addTo(miniMap);
 
-        setTimeout(()=>miniMap.invalidateSize({pan:false}),80);
+        setTimeout(()=>{
+          miniMap.invalidateSize({pan:false});
+          miniMap.setView(point,zoom,{animate:false});
+        },120);
         observationMiniMaps.push(miniMap);
       });
     });
@@ -2027,8 +2028,13 @@ svg.leaflet-image-layer.leaflet-interactive path {
       const id = img.dataset.photoId;
       try{
         const url = await getPhotoUrl(id);
-        if(url) img.src = url;
-        else img.remove();
+        if(url){
+          img.onload = ()=>img.classList.remove("hidden");
+          img.onerror = ()=>img.remove();
+          img.src = url;
+        }else{
+          img.remove();
+        }
       }catch(e){
         img.remove();
       }
@@ -2303,6 +2309,8 @@ svg.leaflet-image-layer.leaflet-interactive path {
     $("speciesName").value = "";
     $("individualCount").value = 1;
     $("habitatText").value = "";
+    $("habitatOther").value = "";
+    $("habitatOtherWrap").classList.add("hidden");
     document.querySelectorAll("#habitatChips .chip").forEach(c=>c.classList.remove("active"));
     $("measureAccuracy").textContent = "측정 전";
     $("measureMessage").textContent = "종을 발견한 위치에서 측정을 시작하세요.";
@@ -2360,6 +2368,12 @@ svg.leaflet-image-layer.leaflet-interactive path {
     const species = $("speciesName").value.trim();
     const count = Math.max(1,Number($("individualCount").value || 1));
     const habitat = $("habitatText").value.trim();
+    const habitatOther = $("habitatOther").value.trim();
+    const otherSelected = $("habitatOtherChip").classList.contains("active");
+    const savedTags = Array.from(selectedHabitatTags);
+    if(otherSelected && habitatOther){
+      savedTags.push(`기타: ${habitatOther}`);
+    }
     if(!measuredObservationPosition){
       alert("먼저 GPS를 ±10m 이내로 측정하세요.");
       return;
@@ -2373,7 +2387,12 @@ svg.leaflet-image-layer.leaflet-interactive path {
       $("speciesName").focus();
       return;
     }
-    if(!habitat && selectedHabitatTags.size===0){
+    if(otherSelected && !habitatOther){
+      alert("기타 출현지역 또는 서식 특성을 직접 입력하세요.");
+      $("habitatOther").focus();
+      return;
+    }
+    if(!habitat && savedTags.length===0){
       alert("출현지역 또는 서식 특성을 입력하세요.");
       return;
     }
@@ -2396,26 +2415,17 @@ svg.leaflet-image-layer.leaflet-interactive path {
         });
       }
 
-      const currentMapCenter = routeMap?.getCenter?.();
-      const recordedMapView = {
-        centerLat:Number(currentMapCenter?.lat ?? measuredObservationPosition.lat),
-        centerLon:Number(currentMapCenter?.lng ?? measuredObservationPosition.lon),
-        zoom:Number(routeMap?.getZoom?.() ?? 18)
-      };
-
       currentSurvey.observations.push({
         id:observationId,
         species,
         count,
         habitat,
-        tags:Array.from(selectedHabitatTags),
+        tags:savedTags,
         lat:measuredObservationPosition.lat,
         lon:measuredObservationPosition.lon,
         accuracy:measuredObservationPosition.accuracy,
         time:new Date().toISOString(),
-        photoId,
-        mapView:recordedMapView,
-        routePointCount:(currentSurvey.route || []).length
+        photoId
       });
       saveJson(STORAGE.draft,currentSurvey);
       closeObservationModal();
@@ -2512,8 +2522,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
     if(!history.length){alert("내보낼 기록이 없습니다.");return}
     const rows = [[
       "조사일자","참여자","조사구간","시작시간","종료시간","날씨","종명","개체수",
-      "출현지역·서식특성","발견시각","위도","경도","GPS정확도(m)","사진여부","사진ID",
-      "지도중심위도","지도중심경도","지도확대수준","기록시점경로좌표수"
+      "출현지역·서식특성","발견시각","위도","경도","GPS정확도(m)","사진여부","사진ID"
     ]];
     history.forEach(s=>{
       (s.observations||[]).forEach(o=>{
@@ -2521,14 +2530,12 @@ svg.leaflet-image-layer.leaflet-interactive path {
           s.date,s.participant,s.zone?.name||"",
           formatTime(s.startTime,true),formatTime(s.endTime,true),weatherText(s.weather),
           o.species,o.count,[...(o.tags||[]),o.habitat||""].filter(Boolean).join(" / "),
-          formatTime(o.time,true),o.lat,o.lon,o.accuracy,o.photoId ? "있음" : "없음",o.photoId || "",
-          o.mapView?.centerLat ?? o.lat,o.mapView?.centerLon ?? o.lon,o.mapView?.zoom ?? 18,
-          o.routePointCount ?? ""
+          formatTime(o.time,true),o.lat,o.lon,o.accuracy,o.photoId ? "있음" : "없음",o.photoId || ""
         ]);
       });
     });
     const csv = rows.map(r=>r.map(csvEscape).join(",")).join("\r\n");
-    downloadBlob("\uFEFF"+csv,`백로류_모니터링_${new Date().toISOString().slice(0,10)}.csv`,"text/csv;charset=utf-8");
+    downloadBlob("\uFEFF"+csv,`학교숲_시민과학자_${new Date().toISOString().slice(0,10)}.csv`,"text/csv;charset=utf-8");
   }
 
   function exportJson(){
@@ -2538,7 +2545,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
       settings,
       surveys:loadJson(STORAGE.history,[])
     };
-    downloadBlob(JSON.stringify(data,null,2),`백로류_모니터링_백업_${new Date().toISOString().slice(0,10)}.json`,"application/json");
+    downloadBlob(JSON.stringify(data,null,2),`학교숲_시민과학자_백업_${new Date().toISOString().slice(0,10)}.json`,"application/json");
   }
 
   function csvEscape(v){
@@ -2660,7 +2667,19 @@ svg.leaflet-image-layer.leaflet-interactive path {
   document.querySelectorAll("#habitatChips .chip").forEach(chip=>{
     chip.addEventListener("click",()=>{
       chip.classList.toggle("active");
-      chip.classList.contains("active")
+      const active = chip.classList.contains("active");
+
+      if(chip.dataset.other === "true"){
+        $("habitatOtherWrap").classList.toggle("hidden",!active);
+        if(active){
+          setTimeout(()=>$("habitatOther").focus(),50);
+        }else{
+          $("habitatOther").value = "";
+        }
+        return;
+      }
+
+      active
         ? selectedHabitatTags.add(chip.textContent.trim())
         : selectedHabitatTags.delete(chip.textContent.trim());
     });
