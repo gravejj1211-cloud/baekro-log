@@ -759,6 +759,14 @@ svg.leaflet-image-layer.leaflet-interactive path {
     }
     .survey-head .sub,.survey-head .muted{color:rgba(255,255,255,.8)}
     .big-number{font-size:28px;font-weight:900}
+    .teacher-dashboard-head{background:linear-gradient(135deg,#304b68,#456b8e);color:white;border:0}
+    .teacher-dashboard-head .sub{color:rgba(255,255,255,.82)}
+    .teacher-dashboard-head .btn.ghost{background:rgba(255,255,255,.92)}
+    .teacher-dashboard-head .btn.secondary{background:rgba(255,255,255,.16);color:white;border:1px solid rgba(255,255,255,.28)}
+    .teacher-history-list{display:flex;flex-direction:column;gap:10px}
+    .teacher-history-item{border:1px solid var(--line);border-radius:14px;padding:12px;background:#fbfcfb}
+    .teacher-history-title{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;font-weight:900}
+    .teacher-history-meta{margin-top:6px;color:var(--muted);font-size:12px;line-height:1.55}
     .gps-summary-line{display:flex;align-items:baseline;gap:8px;margin-top:3px;color:var(--muted)}
     .gps-summary-line strong{color:var(--text);font-size:15px}
     .gps-details{margin-top:12px;border-top:1px solid var(--line);padding-top:9px}
@@ -782,7 +790,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
     }
     .obs{position:relative;isolation:isolate;overflow:hidden}
     .obs-card-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding-bottom:11px;border-bottom:1px solid #e2ebe5}
-    .obs-index{font-size:12px;font-weight:900;color:var(--primary-2);letter-spacing:.01em}
+    .obs-index{font-size:12px;font-weight:900;color:var(--primary-2);letter-spacing:.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .obs-time{margin-top:3px;font-size:12px;color:var(--muted)}
     .obs-top{display:block;min-width:0;padding-top:11px}
     .obs-heading{display:flex;align-items:baseline;gap:9px;min-width:0;flex-wrap:nowrap}
@@ -1226,6 +1234,48 @@ svg.leaflet-image-layer.leaflet-interactive path {
         <div id="historyList"><div class="muted">저장된 기록이 없습니다.</div></div>
       </div>
     </section>
+
+    <section id="teacherView" class="hidden">
+      <div class="card teacher-dashboard-head">
+        <div class="sub">교사용 관리 화면</div>
+        <div class="big-number">교사 대시보드</div>
+        <div class="sub">조사 구간과 학생 조사 기록을 확인합니다.</div>
+        <div class="btn-row" style="margin-top:14px">
+          <button class="btn ghost" id="teacherBackHomeBtn">학생 화면</button>
+          <button class="btn secondary" id="openTeacherSettingsBtn">조사 구간 설정</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>조사 현황</h2>
+        <div class="metrics">
+          <div class="metric">
+            <div class="n" id="teacherZoneCountText">0</div>
+            <div class="t">조사 구간</div>
+          </div>
+          <div class="metric">
+            <div class="n" id="teacherSurveyCountText">0</div>
+            <div class="t">저장 조사</div>
+          </div>
+          <div class="metric">
+            <div class="n" id="teacherSubmittedCountText">0</div>
+            <div class="t">최종 제출</div>
+          </div>
+          <div class="metric">
+            <div class="n" id="teacherObservationCountText">0</div>
+            <div class="t">관찰 기록</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>조사 기록</h2>
+        <p class="muted">현재는 이 기기에 저장된 조사 기록을 표시합니다. Supabase 연결 후 여러 학생의 제출 기록을 이 화면에서 함께 확인할 수 있습니다.</p>
+        <div id="teacherHistoryList" class="teacher-history-list">
+          <div class="muted">저장된 조사 기록이 없습니다.</div>
+        </div>
+      </div>
+    </section>
   </main>
 
   <nav class="footer-nav no-print">
@@ -1490,6 +1540,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
     zones: defaultZones,
     teacherPin: ""
   }));
+  let teacherUnlocked = false;
   let currentSurvey = loadJson(STORAGE.draft, null);
   let routeWatchId = null;
   let timerId = null;
@@ -1842,8 +1893,8 @@ svg.leaflet-image-layer.leaflet-interactive path {
     $("teacherPinInput").value = "";
     $("teacherPinConfirm").value = "";
     $("newTeacherPin").value = "";
-    $("zoneManagerPanel").classList.add("hidden");
-    $("teacherAuthPanel").classList.remove("hidden");
+    $("zoneManagerPanel").classList.toggle("hidden", !teacherUnlocked);
+    $("teacherAuthPanel").classList.toggle("hidden", teacherUnlocked);
 
     const firstSetup = !settings.teacherPin;
     $("teacherAuthTitle").textContent = firstSetup ? "교사 PIN 최초 설정" : "교사 PIN 확인";
@@ -1876,7 +1927,10 @@ svg.leaflet-image-layer.leaflet-interactive path {
 
     $("teacherAuthPanel").classList.add("hidden");
     $("zoneManagerPanel").classList.remove("hidden");
+    teacherUnlocked = true;
     renderZoneEditor();
+    $("settingsModal").classList.add("hidden");
+    showView("teacher");
   }
 
   async function fetchWeather(lat,lon){
@@ -2410,18 +2464,14 @@ svg.leaflet-image-layer.leaflet-interactive path {
     list.innerHTML = obs.map((o,idx)=>`
       <article class="obs">
         <div class="obs-card-header">
-          <div>
-            <div class="obs-index">관찰 기록 ${idx + 1}</div>
-            <div class="obs-time">${formatTime(o.time,true)}</div>
-          </div>
-          <div class="obs-count">${o.count}개체</div>
+          <div class="obs-index">관찰 기록 ${idx + 1} · ${formatTime(o.time,true)} · ${o.count}개체</div>
         </div>
         <div class="obs-top">
           <div class="obs-heading">
             <div class="obs-name">${escapeHtml(o.species)}</div>
           </div>
           <div class="obs-meta">
-            GPS ${o.lat.toFixed(6)}, ${o.lon.toFixed(6)} · 정확도 ±${Math.round(o.accuracy)}m${o.locationMethod ? ` · ${locationMethodLabel(o.locationMethod)}` : ""}
+            GPS ${o.lat.toFixed(6)}, ${o.lon.toFixed(6)} · 정확도 ±${Math.round(o.accuracy)}m${observationMethodMeta(o.locationMethod)}
           </div>
         </div>
         <details class="obs-details">
@@ -2823,6 +2873,10 @@ svg.leaflet-image-layer.leaflet-interactive path {
     if(method === "low_accuracy") return "정확도 초과 GPS 사용";
     if(method === "gps") return "GPS 자동 측정";
     return "";
+  }
+
+  function observationMethodMeta(method){
+    return method && method !== "gps" ? ` · ${locationMethodLabel(method)}` : "";
   }
 
   function hideLocationFallback(){
@@ -3295,6 +3349,42 @@ svg.leaflet-image-layer.leaflet-interactive path {
     }).join("");
   }
 
+  function renderTeacherDashboard(){
+    const history = loadJson(STORAGE.history,[]);
+    const observations = history.reduce((sum,s)=>sum+(s.observations || []).length,0);
+    const submitted = history.filter(isSubmittedSurvey).length;
+    $("teacherZoneCountText").textContent = settings.zones.length;
+    $("teacherSurveyCountText").textContent = history.length;
+    $("teacherSubmittedCountText").textContent = submitted;
+    $("teacherObservationCountText").textContent = observations;
+
+    const list = $("teacherHistoryList");
+    if(!history.length){
+      list.innerHTML = `<div class="muted">저장된 조사 기록이 없습니다.</div>`;
+      return;
+    }
+    list.innerHTML = history.map((s,idx)=>{
+      const uniqueSpecies = new Set((s.observations || []).map(o=>o.species.trim().toLowerCase())).size;
+      const total = (s.observations || []).reduce((sum,o)=>sum+Number(o.count || 0),0);
+      return `
+        <div class="teacher-history-item">
+          <div class="teacher-history-title">
+            <span>${escapeHtml(s.date)} · ${escapeHtml(s.zone?.name || "미지정")}</span>
+            ${isSubmittedSurvey(s) ? `<span class="submission-badge">최종 제출</span>` : `<span class="tiny">임시 저장</span>`}
+          </div>
+          <div class="teacher-history-meta">
+            ${escapeHtml(s.participant)} · ${formatTime(s.startTime)}~${formatTime(s.endTime)}<br>
+            ${uniqueSpecies}종 · ${total}개체 · ${(s.observations || []).length}건
+            ${s.submittedAt ? `<br>제출 시각 · ${formatTime(s.submittedAt,true)}` : ""}
+          </div>
+          <div class="btn-row" style="margin-top:10px">
+            <button class="btn ghost" onclick="window.__openHistory(${idx})">조사 기록 보기</button>
+          </div>
+        </div>
+      `;
+    }).join("");
+  }
+
   window.__openHistory = (idx)=>{
     const history = loadJson(STORAGE.history,[]);
     currentSurvey = history[idx];
@@ -3326,6 +3416,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
     $("homeView").classList.toggle("hidden",view!=="home");
     $("surveyView").classList.toggle("hidden",view!=="survey");
     $("historyView").classList.toggle("hidden",view!=="history");
+    $("teacherView").classList.toggle("hidden",view!=="teacher");
     document.querySelectorAll(".nav-btn").forEach(b=>b.classList.toggle("active",b.dataset.view===view));
 
     if(view==="survey"){
@@ -3349,6 +3440,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
       }
     }
     if(view==="history") renderHistory();
+    if(view==="teacher") renderTeacherDashboard();
   }
 
   function escapeHtml(str){
@@ -3411,6 +3503,8 @@ svg.leaflet-image-layer.leaflet-interactive path {
   $("centerCurrentBtn").addEventListener("click",centerCurrentLocation);
   $("fitRouteBtn").addEventListener("click",fitAllRoutePoints);
   $("settingsBtn").addEventListener("click",openTeacherSettings);
+  $("teacherBackHomeBtn").addEventListener("click",()=>showView("home"));
+  $("openTeacherSettingsBtn").addEventListener("click",openTeacherSettings);
   $("closeSettingsModal").addEventListener("click",()=>$("settingsModal").classList.add("hidden"));
   $("saveSettingsBtn").addEventListener("click",saveSettings);
   $("teacherAuthBtn").addEventListener("click",authenticateTeacher);
