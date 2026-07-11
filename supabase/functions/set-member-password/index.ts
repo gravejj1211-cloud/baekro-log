@@ -12,6 +12,17 @@ const json = (body: unknown, status = 200) =>
     headers: { ...corsHeaders, "Content-Type": "application/json" }
   });
 
+const firstKeyFromDictionary = (value: string | undefined) => {
+  if (!value) return undefined;
+  try {
+    const dictionary = JSON.parse(value) as Record<string, unknown>;
+    const candidate = Object.values(dictionary).find((item) => typeof item === "string");
+    return typeof candidate === "string" ? candidate : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
@@ -27,7 +38,8 @@ Deno.serve(async (request) => {
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceRoleKey = Deno.env.get("SCHOOLFOREST_SERVICE_ROLE_KEY")
+    const serviceRoleKey = firstKeyFromDictionary(Deno.env.get("SUPABASE_SECRET_KEYS"))
+      || Deno.env.get("SCHOOLFOREST_SERVICE_ROLE_KEY")
       || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     if (!serviceRoleKey) {
       console.error("service role key is not available in Edge Function secrets");

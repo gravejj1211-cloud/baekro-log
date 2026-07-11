@@ -12,6 +12,17 @@ const json = (body: unknown, status = 200) =>
     headers: { ...corsHeaders, "Content-Type": "application/json" }
   });
 
+const firstKeyFromDictionary = (value: string | undefined) => {
+  if (!value) return undefined;
+  try {
+    const dictionary = JSON.parse(value) as Record<string, unknown>;
+    const candidate = Object.values(dictionary).find((item) => typeof item === "string");
+    return typeof candidate === "string" ? candidate : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
 const STORAGE_BUCKET = "observation-photos";
 const DATABASE_LIMIT = 500 * 1024 * 1024;
 const STORAGE_LIMIT = 1024 * 1024 * 1024;
@@ -24,7 +35,8 @@ Deno.serve(async (request) => {
     const token = (request.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "").trim();
     if (!token) return json({ error: "로그인 세션이 없습니다." }, 401);
 
-    const serviceRoleKey = Deno.env.get("SCHOOLFOREST_SERVICE_ROLE_KEY")
+    const serviceRoleKey = firstKeyFromDictionary(Deno.env.get("SUPABASE_SECRET_KEYS"))
+      || Deno.env.get("SCHOOLFOREST_SERVICE_ROLE_KEY")
       || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     if (!serviceRoleKey) return json({ error: "서버 인증 설정이 완료되지 않았습니다." }, 500);
 

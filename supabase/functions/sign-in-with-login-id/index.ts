@@ -37,9 +37,9 @@ Deno.serve(async (request) => {
     // Supabase provides the legacy service-role key as a default Edge Function
     // secret. Keep the custom name as an optional override for deployments that
     // explicitly configure it.
-    const serviceRoleKey = Deno.env.get("SCHOOLFOREST_SERVICE_ROLE_KEY")
-      || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")
-      || firstKeyFromDictionary(Deno.env.get("SUPABASE_SECRET_KEYS"));
+    const serviceRoleKey = firstKeyFromDictionary(Deno.env.get("SUPABASE_SECRET_KEYS"))
+      || Deno.env.get("SCHOOLFOREST_SERVICE_ROLE_KEY")
+      || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     if (!serviceRoleKey) {
       console.error("service role key is not available in Edge Function secrets");
       return json({ error: "서버 인증 설정이 완료되지 않았습니다." }, 500);
