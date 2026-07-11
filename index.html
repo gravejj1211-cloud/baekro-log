@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#176b4d" />
-  <title>학교숲 시민과학자 v11</title>
+  <title>학교숲 시민과학자 v14</title>
 <style>
 /* Leaflet 1.9.4 - 로컬 내장 */
 /* required styles */
@@ -797,6 +797,59 @@ svg.leaflet-image-layer.leaflet-interactive path {
     .progress > div{height:100%;width:0;background:var(--primary);transition:width .2s}
     .measure-box{border:1px solid var(--line);border-radius:15px;padding:14px;background:#f9fbfa;margin-bottom:14px}
     .measure-value{font-size:28px;font-weight:900;text-align:center;margin:10px 0}
+    .location-fallback{
+      margin-top:12px;padding:12px;border:1px solid #efd49d;
+      border-radius:13px;background:#fff9ea
+    }
+    .location-fallback-title{font-weight:900;color:#755000;margin-bottom:5px}
+    .location-fallback .btn-row{margin-top:10px}
+    .location-method-note{
+      margin-top:10px;padding:10px 11px;border-radius:12px;
+      background:#edf8f1;color:var(--primary-2);font-size:12px;
+      font-weight:800;line-height:1.5
+    }
+    .low-accuracy-wrap{
+      margin-top:11px;padding-top:11px;border-top:1px solid #ead7ae
+    }
+    .location-picker-modal{z-index:20000}
+    .location-picker-modal .sheet{z-index:20001;max-height:96vh}
+    .location-picker-guide{
+      margin-bottom:11px;padding:10px 12px;border-radius:12px;
+      background:#f1f7f3;color:#385448;font-size:12px;line-height:1.5
+    }
+    .location-picker-wrap{
+      position:relative;width:100%;height:min(52vh,440px);
+      min-height:310px;border:1px solid var(--line);border-radius:14px;
+      overflow:hidden;background:#e7ede9
+    }
+    #locationPickerMap{width:100%;height:100%;background:#e7ede9}
+    #locationPickerMap img.leaflet-tile{
+      mix-blend-mode:normal!important;opacity:1!important;
+      visibility:visible!important;filter:none!important
+    }
+    .location-crosshair{
+      position:absolute;left:50%;top:50%;z-index:1200;
+      width:34px;height:34px;transform:translate(-50%,-50%);
+      pointer-events:none
+    }
+    .location-crosshair::before,
+    .location-crosshair::after{
+      content:"";position:absolute;background:#d9473f;
+      box-shadow:0 0 0 1px rgba(255,255,255,.85)
+    }
+    .location-crosshair::before{left:16px;top:0;width:3px;height:34px}
+    .location-crosshair::after{left:0;top:16px;width:34px;height:3px}
+    .location-crosshair-dot{
+      position:absolute;left:50%;top:50%;width:11px;height:11px;
+      transform:translate(-50%,-50%);border-radius:50%;
+      background:#d9473f;border:3px solid white;
+      box-shadow:0 2px 8px rgba(0,0,0,.25)
+    }
+    .picker-coordinates{
+      margin:10px 0;padding:9px 11px;border-radius:11px;
+      background:#f7faf8;border:1px solid var(--line);
+      font-size:12px;font-weight:800;text-align:center
+    }
     .zone-editor{display:flex;flex-direction:column;gap:9px}
     .zone-edit-row{
       display:grid;grid-template-columns:1fr 42px 42px 42px;gap:7px;align-items:center
@@ -815,8 +868,25 @@ svg.leaflet-image-layer.leaflet-interactive path {
       padding:11px 12px;border-radius:12px;font-size:12px;line-height:1.5
     }
     .history-item{border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:9px}
-    .history-title{font-weight:900}
+    .history-title{font-weight:900;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
     .history-meta{font-size:12px;color:var(--muted);margin-top:4px;line-height:1.45}
+    .submission-badge{
+      display:inline-flex;align-items:center;min-height:24px;padding:3px 9px;
+      border-radius:999px;background:#e7f5ec;color:var(--primary-2);
+      font-size:11px;font-weight:900;white-space:nowrap
+    }
+    .reflection-card{border-left:5px solid var(--primary)}
+    .reflection-text{
+      margin-top:8px;padding:12px;border-radius:12px;background:#f4f8f5;
+      color:#263b31;line-height:1.65;white-space:pre-wrap;word-break:break-word
+    }
+    .finish-reflection textarea{min-height:150px;resize:vertical}
+    .char-count{text-align:right;margin-top:5px;font-size:12px;color:var(--muted)}
+    .submit-warning{
+      margin-top:12px;padding:11px 12px;border-radius:12px;
+      background:#fff4df;border:1px solid #efd39a;color:#755000;
+      font-size:12px;font-weight:800;line-height:1.55
+    }
     .footer-nav{
       position:fixed;left:0;right:0;bottom:0;z-index:30;background:white;border-top:1px solid var(--line);
       padding:9px 12px calc(9px + env(safe-area-inset-bottom));
@@ -894,11 +964,16 @@ svg.leaflet-image-layer.leaflet-interactive path {
       padding:8px 10px;border-bottom:1px solid var(--line);
       font-size:12px;font-weight:800;color:var(--muted)
     }
-    .obs-map-frame-wrap{
+    .obs-map-image-wrap{
       position:relative;width:100%;height:220px;background:#e9efeb;overflow:hidden
     }
-    .obs-map-frame{
-      display:block;width:100%;height:100%;border:0;background:#e9efeb
+    .obs-map-image{
+      display:block;width:100%;height:100%;object-fit:cover;background:#e9efeb
+    }
+    .obs-map-image-status{
+      position:absolute;inset:0;display:grid;place-items:center;
+      padding:18px;text-align:center;color:var(--muted);
+      font-size:12px;font-weight:800;background:#eef3f0
     }
     .obs-map-link{
       display:flex;align-items:center;justify-content:center;
@@ -917,7 +992,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
       .zone-edit-row{grid-template-columns:1fr 38px 38px 38px}
       .mini-btn{height:40px}
       #routeMap,.map-message{height:300px;min-height:300px}
-      .obs-map-frame-wrap{height:200px}
+      .obs-map-image-wrap{height:200px}
     }
     @media print{
       body{background:white}
@@ -941,7 +1016,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
       <div class="logo">鳥</div>
       <div>
         <h1>학교숲 시민과학자</h1>
-        <div class="sub">모바일 생태 조사 기록 · v11</div>
+        <div class="sub">모바일 생태 조사 기록 · v14</div>
       </div>
     </div>
     <button class="icon-btn" id="settingsBtn" aria-label="설정">⚙️</button>
@@ -1016,6 +1091,12 @@ svg.leaflet-image-layer.leaflet-interactive path {
             <div class="t">총 개체수</div>
           </div>
         </div>
+      </div>
+
+      <div id="submittedReflectionCard" class="card reflection-card hidden">
+        <h2>조사 소감 및 특이사항 <span class="submission-badge">최종 제출 완료</span></h2>
+        <div id="submittedReflectionText" class="reflection-text"></div>
+        <div id="submittedAtText" class="tiny" style="margin-top:8px"></div>
       </div>
 
       <div class="card no-print">
@@ -1112,6 +1193,33 @@ svg.leaflet-image-layer.leaflet-interactive path {
       <div class="progress"><div id="measureProgress"></div></div>
       <p class="muted" id="measureMessage">종을 발견한 위치에서 측정을 시작하세요.</p>
       <button class="btn secondary block" id="measurePositionBtn">GPS 측정 시작</button>
+
+      <div id="locationFallbackPanel" class="location-fallback hidden">
+        <div class="location-fallback-title">GPS 정확도가 10m를 초과했습니다.</div>
+        <div id="locationFallbackText" class="muted">
+          다시 측정하거나 지도에서 관찰 위치를 직접 지정하세요.
+        </div>
+        <div class="btn-row">
+          <button type="button" class="btn secondary" id="mapSelectLocationBtn">지도에서 위치 지정</button>
+          <button type="button" class="btn ghost" id="showLowAccuracyBtn">정확도 초과로 저장</button>
+        </div>
+
+        <div id="lowAccuracyReasonWrap" class="low-accuracy-wrap hidden">
+          <label for="lowAccuracyReason">정확도 초과 저장 사유</label>
+          <select id="lowAccuracyReason">
+            <option value="">사유를 선택하세요</option>
+            <option value="건물 또는 나무로 인한 신호 불량">건물 또는 나무로 인한 신호 불량</option>
+            <option value="이동 중 기록">이동 중 기록</option>
+            <option value="지도 사용 불가">지도 사용 불가</option>
+            <option value="기타">기타</option>
+          </select>
+          <button type="button" class="btn ghost block" id="confirmLowAccuracyBtn" style="margin-top:9px">
+            이 좌표로 저장 허용
+          </button>
+        </div>
+      </div>
+
+      <div id="locationMethodNote" class="location-method-note hidden"></div>
     </div>
 
     <div class="form-group">
@@ -1190,6 +1298,35 @@ svg.leaflet-image-layer.leaflet-interactive path {
   </div>
 </div>
 
+<!-- 관찰 위치 지도 지정 모달 -->
+<div id="locationPickerModal" class="modal location-picker-modal hidden">
+  <div class="sheet">
+    <div class="sheet-head">
+      <h3>지도에서 관찰 위치 지정</h3>
+      <button class="icon-btn" id="closeLocationPicker">✕</button>
+    </div>
+
+    <div class="location-picker-guide">
+      학생이 서 있는 위치가 아니라 <b>관찰한 생물이 있었던 위치</b>가
+      화면 중앙의 빨간 십자표시에 오도록 지도를 움직이세요.
+    </div>
+
+    <div class="location-picker-wrap">
+      <div id="locationPickerMap" aria-label="관찰 위치 지정 지도"></div>
+      <div class="location-crosshair" aria-hidden="true">
+        <span class="location-crosshair-dot"></span>
+      </div>
+    </div>
+
+    <div id="pickerCoordinates" class="picker-coordinates">좌표 준비 중</div>
+
+    <div class="btn-row">
+      <button type="button" class="btn secondary" id="pickerCurrentGpsBtn">측정 GPS로 돌아가기</button>
+      <button type="button" class="btn primary" id="confirmPickerLocationBtn">이 위치로 지정</button>
+    </div>
+  </div>
+</div>
+
 <!-- 교사용 설정 모달 -->
 <div id="settingsModal" class="modal hidden">
   <div class="sheet">
@@ -1241,17 +1378,31 @@ svg.leaflet-image-layer.leaflet-interactive path {
   </div>
 </div>
 
-<!-- 조사 종료 모달 -->
+<!-- 조사 결과 확인 및 최종 제출 모달 -->
 <div id="finishModal" class="modal hidden">
   <div class="sheet">
     <div class="sheet-head">
-      <h3>조사 종료</h3>
+      <h3>조사 결과 확인 및 최종 제출</h3>
       <button class="icon-btn" id="closeFinishModal">✕</button>
     </div>
+
     <div id="finishSummary" class="card" style="box-shadow:none"></div>
-    <div class="btn-row">
-      <button class="btn ghost" id="printCurrentBtn">인쇄</button>
-      <button class="btn primary" id="confirmFinishBtn">최종 저장</button>
+
+    <div class="form-group finish-reflection">
+      <label for="surveyReflection">조사 소감 및 특이사항</label>
+      <textarea id="surveyReflection" maxlength="500"
+        placeholder="관찰한 생물과 주변 환경의 관계, 조사 중 어려웠던 점, 특이하게 발견한 현상, 다음 조사에서 확인하고 싶은 점 등을 작성하세요."></textarea>
+      <div class="char-count"><span id="reflectionCharCount">0</span>/500자</div>
+    </div>
+
+    <div class="submit-warning">
+      최종 제출 후에는 학생이 관찰 기록을 수정하거나 삭제할 수 없습니다.
+      내용을 다시 확인한 뒤 제출하세요.
+    </div>
+
+    <div class="btn-row" style="margin-top:14px">
+      <button class="btn ghost" id="continueSurveyBtn">조사 계속하기</button>
+      <button class="btn primary" id="confirmFinishBtn">최종 제출</button>
     </div>
   </div>
 </div>
@@ -1295,6 +1446,11 @@ svg.leaflet-image-layer.leaflet-interactive path {
   let timerId = null;
   let lastLivePosition = null;
   let measuredObservationPosition = null;
+  let deviceObservationPosition = null;
+  let observationLocationMethod = null;
+  let observationLocationNote = "";
+  let locationPickerMap = null;
+  let locationPickerSourceLayer = null;
   let selectedHabitatTags = new Set();
   let measurementWatcher = null;
   let routeMap = null;
@@ -1733,8 +1889,13 @@ svg.leaflet-image-layer.leaflet-interactive path {
         done = true;
         navigator.geolocation.clearWatch(watchId);
         clearInterval(tickId);
-        if(ok && best) resolve(best);
-        else reject(err || new Error("GPS 정확도가 ±10m 이내에 도달하지 못했습니다."));
+        if(ok && best){
+          resolve(best);
+        }else{
+          const finalError = err || new Error("GPS 정확도가 ±10m 이내에 도달하지 못했습니다.");
+          if(best) finalError.best = {...best};
+          reject(finalError);
+        }
       };
 
       const watchId = navigator.geolocation.watchPosition(
@@ -1817,6 +1978,9 @@ svg.leaflet-image-layer.leaflet-interactive path {
         route:[best],
         distance:0,
         observations:[],
+        reflection:"",
+        submissionStatus:"draft",
+        submittedAt:null,
         status:"진행중"
       };
       saveJson(STORAGE.draft,currentSurvey);
@@ -1902,11 +2066,34 @@ svg.leaflet-image-layer.leaflet-interactive path {
     updateCurrentLocationOnMap(p);
   }
 
+  function isDraftSurvey(survey){
+    return survey?.status === "진행중" || survey?.status === "draft";
+  }
+
+  function isSubmittedSurvey(survey){
+    return survey?.status === "submitted" ||
+      survey?.submissionStatus === "submitted" ||
+      survey?.status === "완료";
+  }
+
   function renderSurvey(){
     if(!currentSurvey) return;
     $("surveyDateText").textContent = `${currentSurvey.date} · ${currentSurvey.participant}`;
     $("surveyZoneText").textContent = currentSurvey.zone?.name || "미지정";
     $("surveyWeatherText").textContent = weatherText(currentSurvey.weather);
+
+    const reflectionCard = $("submittedReflectionCard");
+    if(isSubmittedSurvey(currentSurvey)){
+      $("submittedReflectionText").textContent =
+        currentSurvey.reflection?.trim() || "작성된 소감이 없습니다.";
+      $("submittedAtText").textContent = currentSurvey.submittedAt
+        ? `제출 시각 · ${formatTime(currentSurvey.submittedAt,true)}`
+        : "최종 제출 완료";
+      reflectionCard.classList.remove("hidden");
+    }else{
+      reflectionCard.classList.add("hidden");
+    }
+
     renderSurveyMetrics();
     renderObservations();
     drawRoute();
@@ -1925,30 +2112,214 @@ svg.leaflet-image-layer.leaflet-interactive path {
       : `${Math.round(currentSurvey.distance)}m`;
   }
 
-  function osmEmbedUrl(lat,lon){
-    const latitude = Number(lat);
-    const longitude = Number(lon);
-    const latDelta = 0.00105;
-    const cosLat = Math.max(0.2,Math.cos(latitude*Math.PI/180));
-    const lonDelta = latDelta/cosLat;
-    const bbox = [
-      longitude-lonDelta,
-      latitude-latDelta,
-      longitude+lonDelta,
-      latitude+latDelta
-    ].map(v=>v.toFixed(6)).join(",");
-    const params = new URLSearchParams({
-      bbox,
-      layer:"mapnik",
-      marker:`${latitude.toFixed(6)},${longitude.toFixed(6)}`
-    });
-    return `https://www.openstreetmap.org/export/embed.html?${params.toString()}`;
-  }
-
   function osmViewUrl(lat,lon){
     const latitude = Number(lat).toFixed(6);
     const longitude = Number(lon).toFixed(6);
     return `https://www.openstreetmap.org/?mlat=${latitude}&mlon=${longitude}#map=18/${latitude}/${longitude}`;
+  }
+
+  function canvasToBlob(canvas,type="image/jpeg",quality=.86){
+    return new Promise((resolve,reject)=>{
+      try{
+        canvas.toBlob(blob=>{
+          if(blob) resolve(blob);
+          else reject(new Error("지도 이미지를 만들지 못했습니다."));
+        },type,quality);
+      }catch(e){
+        reject(e);
+      }
+    });
+  }
+
+  function lonToWorldX(lon,zoom){
+    return ((Number(lon)+180)/360) * 256 * Math.pow(2,zoom);
+  }
+
+  function latToWorldY(lat,zoom){
+    const limited = Math.max(-85.05112878,Math.min(85.05112878,Number(lat)));
+    const rad = limited*Math.PI/180;
+    return (1-Math.log(Math.tan(rad)+1/Math.cos(rad))/Math.PI)/2
+      * 256 * Math.pow(2,zoom);
+  }
+
+  function loadMapTile(url,timeoutMs=9000){
+    return new Promise((resolve,reject)=>{
+      const img = new Image();
+      let done = false;
+      const finish = (fn,value)=>{
+        if(done) return;
+        done = true;
+        clearTimeout(timer);
+        fn(value);
+      };
+      const timer = setTimeout(
+        ()=>finish(reject,new Error("지도 타일 응답 시간이 초과되었습니다.")),
+        timeoutMs
+      );
+      img.crossOrigin = "anonymous";
+      img.onload = ()=>finish(resolve,img);
+      img.onerror = ()=>finish(reject,new Error("지도 타일을 불러오지 못했습니다."));
+      img.src = url;
+    });
+  }
+
+  function drawSnapshotOverlay(ctx,width,height,lat,accuracy){
+    const zoom = 17;
+    const earthCircumference = 40075016.686;
+    const metersPerPixel =
+      Math.cos(Number(lat)*Math.PI/180)*earthCircumference/
+      (256*Math.pow(2,zoom));
+    const radiusPx = Math.max(7,Math.min(85,Number(accuracy || 0)/metersPerPixel));
+    const cx = width/2;
+    const cy = height/2;
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx,cy,radiusPx,0,Math.PI*2);
+    ctx.fillStyle = "rgba(217,72,65,.16)";
+    ctx.fill();
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = "rgba(217,72,65,.8)";
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(cx,cy,12,0,Math.PI*2);
+    ctx.fillStyle = "#d94841";
+    ctx.fill();
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = "#ffffff";
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(cx,cy+11);
+    ctx.lineTo(cx-7,cy+27);
+    ctx.lineTo(cx+7,cy+27);
+    ctx.closePath();
+    ctx.fillStyle = "#d94841";
+    ctx.fill();
+
+    ctx.font = "700 16px system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "bottom";
+    ctx.lineWidth = 5;
+    ctx.strokeStyle = "rgba(255,255,255,.95)";
+    ctx.strokeText(`관찰 위치 · GPS ±${Math.round(Number(accuracy || 0))}m`,cx,cy-18);
+    ctx.fillStyle = "#23362d";
+    ctx.fillText(`관찰 위치 · GPS ±${Math.round(Number(accuracy || 0))}m`,cx,cy-18);
+
+    const attribution = "© OpenStreetMap contributors";
+    ctx.font = "600 12px system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif";
+    ctx.textAlign = "right";
+    ctx.textBaseline = "bottom";
+    const textWidth = ctx.measureText(attribution).width;
+    ctx.fillStyle = "rgba(255,255,255,.9)";
+    ctx.fillRect(width-textWidth-16,height-24,textWidth+12,20);
+    ctx.fillStyle = "#34483e";
+    ctx.fillText(attribution,width-10,height-8);
+    ctx.restore();
+  }
+
+  async function createFallbackMapSnapshot(lat,lon,accuracy,width=640,height=360){
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+
+    ctx.fillStyle = "#e7eee9";
+    ctx.fillRect(0,0,width,height);
+
+    ctx.strokeStyle = "#c8d6ce";
+    ctx.lineWidth = 1;
+    for(let x=0;x<=width;x+=48){
+      ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,height);ctx.stroke();
+    }
+    for(let y=0;y<=height;y+=48){
+      ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(width,y);ctx.stroke();
+    }
+
+    ctx.strokeStyle = "#b2c6ba";
+    ctx.lineWidth = 10;
+    ctx.beginPath();
+    ctx.moveTo(-30,height*.72);
+    ctx.bezierCurveTo(width*.24,height*.32,width*.58,height*.86,width+30,height*.30);
+    ctx.stroke();
+
+    drawSnapshotOverlay(ctx,width,height,lat,accuracy);
+
+    ctx.font = "700 13px system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif";
+    ctx.textAlign = "left";
+    ctx.fillStyle = "rgba(255,255,255,.92)";
+    ctx.fillRect(10,10,310,48);
+    ctx.fillStyle = "#41584d";
+    ctx.fillText("지도 배경을 불러오지 못해 좌표 위치만 표시합니다.",18,30);
+    ctx.fillText(`${Number(lat).toFixed(6)}, ${Number(lon).toFixed(6)}`,18,49);
+
+    return canvasToBlob(canvas,"image/jpeg",.86);
+  }
+
+  async function generateObservationMapSnapshot(lat,lon,accuracy){
+    const width = 640;
+    const height = 360;
+    const zoom = 17;
+    const tileSize = 256;
+    const n = Math.pow(2,zoom);
+    const centerX = lonToWorldX(lon,zoom);
+    const centerY = latToWorldY(lat,zoom);
+    const left = centerX-width/2;
+    const top = centerY-height/2;
+    const firstTileX = Math.floor(left/tileSize);
+    const lastTileX = Math.floor((left+width-1)/tileSize);
+    const firstTileY = Math.floor(top/tileSize);
+    const lastTileY = Math.floor((top+height-1)/tileSize);
+
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#e7eee9";
+    ctx.fillRect(0,0,width,height);
+
+    try{
+      const jobs = [];
+      for(let tileY=firstTileY;tileY<=lastTileY;tileY++){
+        if(tileY < 0 || tileY >= n) continue;
+        for(let tileX=firstTileX;tileX<=lastTileX;tileX++){
+          const wrappedX = ((tileX%n)+n)%n;
+          const url = `https://tile.openstreetmap.org/${zoom}/${wrappedX}/${tileY}.png`;
+          jobs.push(
+            loadMapTile(url).then(img=>({
+              img,
+              dx:Math.round(tileX*tileSize-left),
+              dy:Math.round(tileY*tileSize-top)
+            }))
+          );
+        }
+      }
+
+      const tiles = await Promise.all(jobs);
+      for(const tile of tiles){
+        ctx.drawImage(tile.img,tile.dx,tile.dy,tileSize,tileSize);
+      }
+      drawSnapshotOverlay(ctx,width,height,lat,accuracy);
+      return await canvasToBlob(canvas,"image/jpeg",.86);
+    }catch(e){
+      console.warn("지도 캡처 생성 실패, 대체 이미지 사용",e);
+      return createFallbackMapSnapshot(lat,lon,accuracy,width,height);
+    }
+  }
+
+  function persistCurrentSurvey(){
+    if(!currentSurvey) return;
+    if(isDraftSurvey(currentSurvey)){
+      saveJson(STORAGE.draft,currentSurvey);
+      return;
+    }
+    const history = loadJson(STORAGE.history,[]);
+    const idx = history.findIndex(s=>s.id===currentSurvey.id);
+    if(idx >= 0){
+      history[idx] = currentSurvey;
+      saveJson(STORAGE.history,history);
+    }
   }
 
   function renderObservations(){
@@ -1969,7 +2340,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
             <div class="obs-count">${o.count}개체</div>
           </div>
           <div class="obs-meta">
-            ${formatTime(o.time,true)} · GPS ${o.lat.toFixed(6)}, ${o.lon.toFixed(6)} · 정확도 ±${Math.round(o.accuracy)}m
+            ${formatTime(o.time,true)} · GPS ${o.lat.toFixed(6)}, ${o.lon.toFixed(6)} · 정확도 ±${Math.round(o.accuracy)}m${o.locationMethod ? ` · ${locationMethodLabel(o.locationMethod)}` : ""}
           </div>
         </div>
         <div class="obs-habitat">
@@ -1981,27 +2352,85 @@ svg.leaflet-image-layer.leaflet-interactive path {
             관찰 위치 · ${Number(o.lat).toFixed(6)}, ${Number(o.lon).toFixed(6)}
             · 정확도 ±${Math.round(Number(o.accuracy || 0))}m
           </div>
-          <div class="obs-map-frame-wrap">
-            <iframe
-              class="obs-map-frame"
-              src="${escapeHtml(osmEmbedUrl(o.lat,o.lon))}"
-              title="${escapeHtml(o.species)} 관찰 위치 지도"
-              loading="lazy"
-              referrerpolicy="strict-origin-when-cross-origin"
-              allowfullscreen>
-            </iframe>
+          <div class="obs-map-image-wrap">
+            <img class="obs-map-image hidden"
+              data-observation-index="${idx}"
+              data-map-snapshot-id="${escapeHtml(o.mapSnapshotId || "")}"
+              alt="${escapeHtml(o.species)} 관찰 위치 지도 이미지">
+            <div class="obs-map-image-status" data-map-status-index="${idx}">
+              지도 이미지 불러오는 중…
+            </div>
           </div>
           <a class="obs-map-link" href="${escapeHtml(osmViewUrl(o.lat,o.lon))}"
              target="_blank" rel="noopener noreferrer">
             큰 지도에서 위치 보기
           </a>
         </div>
-        <div class="btn-row no-print" style="margin-top:10px">
-          <button class="btn ghost" onclick="window.__deleteObservation(${idx})">삭제</button>
-        </div>
+        ${isDraftSurvey(currentSurvey) ? `
+          <div class="btn-row no-print" style="margin-top:10px">
+            <button class="btn ghost" onclick="window.__deleteObservation(${idx})">삭제</button>
+          </div>
+        ` : ""}
       </article>
     `).join("");
     hydrateObservationPhotos();
+    hydrateObservationMapSnapshots();
+  }
+
+  async function hydrateObservationMapSnapshots(){
+    const images = document.querySelectorAll(".obs-map-image[data-observation-index]");
+    let changed = false;
+
+    for(const img of images){
+      const idx = Number(img.dataset.observationIndex);
+      const observation = currentSurvey?.observations?.[idx];
+      const status = document.querySelector(`[data-map-status-index="${idx}"]`);
+      if(!observation) continue;
+
+      try{
+        let snapshotId = observation.mapSnapshotId || img.dataset.mapSnapshotId;
+        let url = snapshotId ? await getPhotoUrl(snapshotId) : "";
+
+        if(!url){
+          const blob = await generateObservationMapSnapshot(
+            observation.lat,observation.lon,observation.accuracy
+          );
+          snapshotId = `map-${observation.id || Date.now()}-${idx}`;
+          await putPhoto(snapshotId,blob,{
+            mediaType:"map_snapshot",
+            observationId:observation.id,
+            surveyId:currentSurvey.id,
+            lat:observation.lat,
+            lon:observation.lon,
+            accuracy:observation.accuracy
+          });
+          observation.mapSnapshotId = snapshotId;
+          changed = true;
+          url = await getPhotoUrl(snapshotId);
+        }
+
+        if(url){
+          img.onload = ()=>{
+            img.classList.remove("hidden");
+            status?.classList.add("hidden");
+          };
+          img.onerror = ()=>{
+            img.remove();
+            if(status) status.textContent = "지도 이미지를 표시하지 못했습니다.";
+          };
+          img.src = url;
+        }else if(status){
+          status.textContent = "지도 이미지를 만들지 못했습니다.";
+        }
+      }catch(e){
+        console.warn("관찰 지도 이미지 처리 실패",e);
+        if(status){
+          status.textContent = "지도 이미지를 만들지 못했습니다. 큰 지도에서 위치를 확인하세요.";
+        }
+      }
+    }
+
+    if(changed) persistCurrentSurvey();
   }
 
   async function hydrateObservationPhotos(){
@@ -2025,10 +2454,15 @@ svg.leaflet-image-layer.leaflet-interactive path {
 
   window.__deleteObservation = async (idx)=>{
     if(!currentSurvey) return;
+    if(!isDraftSurvey(currentSurvey)){
+      alert("최종 제출된 조사 기록은 학생 화면에서 수정하거나 삭제할 수 없습니다.");
+      return;
+    }
     if(confirm("이 관찰 기록을 삭제할까요?")){
       const removed = currentSurvey.observations.splice(idx,1)[0];
       if(removed?.photoId) await deletePhoto(removed.photoId);
-      if(currentSurvey.status === "진행중") saveJson(STORAGE.draft,currentSurvey);
+      if(removed?.mapSnapshotId) await deletePhoto(removed.mapSnapshotId);
+      if(isDraftSurvey(currentSurvey)) saveJson(STORAGE.draft,currentSurvey);
       else{
         const history = loadJson(STORAGE.history,[]);
         const hidx = history.findIndex(s=>s.id===currentSurvey.id);
@@ -2258,7 +2692,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
       (currentSurvey.observations || []).forEach(addObservationMarker);
     }
 
-    if(currentSurvey.status === "진행중" && lastLivePosition){
+    if(isDraftSurvey(currentSurvey) && lastLivePosition){
       updateCurrentLocationOnMap(lastLivePosition);
     }else if(currentLocationMarker){
       currentLocationMarker.remove();
@@ -2279,12 +2713,187 @@ svg.leaflet-image-layer.leaflet-interactive path {
     }
   }
 
+  function locationMethodLabel(method){
+    if(method === "map") return "지도에서 위치 지정";
+    if(method === "low_accuracy") return "정확도 초과 GPS 사용";
+    if(method === "gps") return "GPS 자동 측정";
+    return "";
+  }
+
+  function hideLocationFallback(){
+    $("locationFallbackPanel").classList.add("hidden");
+    $("lowAccuracyReasonWrap").classList.add("hidden");
+    $("lowAccuracyReason").value = "";
+  }
+
+  function resetObservationLocation(){
+    measuredObservationPosition = null;
+    deviceObservationPosition = null;
+    observationLocationMethod = null;
+    observationLocationNote = "";
+    hideLocationFallback();
+    $("locationMethodNote").classList.add("hidden");
+    $("locationMethodNote").textContent = "";
+  }
+
+  function acceptObservationLocation(position,method,note=""){
+    const source = deviceObservationPosition || position;
+    measuredObservationPosition = {
+      lat:Number(position.lat),
+      lon:Number(position.lon),
+      accuracy:Number(source?.accuracy ?? position.accuracy ?? 9999),
+      timestamp:position.timestamp || new Date().toISOString()
+    };
+    observationLocationMethod = method;
+    observationLocationNote = note;
+
+    const methodText = locationMethodLabel(method);
+    const sourceAccuracy = Math.round(Number(source?.accuracy ?? measuredObservationPosition.accuracy));
+    const finalText = method === "map"
+      ? `${methodText} 완료 · 원본 GPS 정확도 ±${sourceAccuracy}m`
+      : method === "low_accuracy"
+        ? `${methodText} · ±${sourceAccuracy}m · ${note}`
+        : `${methodText} 완료 · 정확도 ±${sourceAccuracy}m`;
+
+    $("locationMethodNote").textContent = finalText;
+    $("locationMethodNote").classList.remove("hidden");
+    $("measureMessage").textContent = method === "map"
+      ? "지도에서 지정한 좌표를 관찰 위치로 사용합니다."
+      : method === "low_accuracy"
+        ? "정확도 초과 좌표로 저장됩니다. 교사 화면에서 확인 대상으로 표시할 수 있습니다."
+        : "좌표가 확보되었습니다. 종 정보를 입력하고 저장하세요.";
+    hideLocationFallback();
+  }
+
+  function showLocationFallback(position){
+    deviceObservationPosition = position;
+    measuredObservationPosition = null;
+    observationLocationMethod = null;
+    observationLocationNote = "";
+
+    const accuracy = Math.round(Number(position.accuracy || 9999));
+    $("locationFallbackText").textContent =
+      `현재 최선 정확도는 ±${accuracy}m입니다. GPS를 다시 측정하거나 지도에서 실제 관찰 위치를 지정하세요.`;
+    $("locationFallbackPanel").classList.remove("hidden");
+    $("locationMethodNote").classList.add("hidden");
+  }
+
+  function initLocationPickerMap(){
+    if(locationPickerMap) return;
+
+    locationPickerMap = L.map("locationPickerMap",{
+      zoomControl:true,
+      attributionControl:true,
+      dragging:true,
+      touchZoom:true,
+      scrollWheelZoom:true,
+      doubleClickZoom:true,
+      boxZoom:false,
+      keyboard:false,
+      tap:true,
+      preferCanvas:true
+    });
+
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{
+      maxZoom:19,
+      minZoom:3,
+      keepBuffer:2,
+      updateWhenIdle:false,
+      attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+    }).addTo(locationPickerMap);
+
+    locationPickerSourceLayer = L.layerGroup().addTo(locationPickerMap);
+    locationPickerMap.on("move",updatePickerCoordinates);
+  }
+
+  function updatePickerCoordinates(){
+    if(!locationPickerMap) return;
+    const center = locationPickerMap.getCenter();
+    $("pickerCoordinates").textContent =
+      `선택 위치 · ${center.lat.toFixed(6)}, ${center.lng.toFixed(6)}`;
+  }
+
+  function drawPickerSourcePosition(){
+    if(!locationPickerMap || !locationPickerSourceLayer) return;
+    locationPickerSourceLayer.clearLayers();
+    const source = deviceObservationPosition || lastLivePosition;
+    if(!source) return;
+
+    const point = [source.lat,source.lon];
+    L.circle(point,{
+      radius:Math.max(1,Number(source.accuracy || 1)),
+      color:"#176b4d",weight:1.5,fillColor:"#176b4d",fillOpacity:.10,
+      interactive:false
+    }).addTo(locationPickerSourceLayer);
+    L.circleMarker(point,{
+      radius:6,color:"#ffffff",weight:2,
+      fillColor:"#176b4d",fillOpacity:1,interactive:false
+    }).addTo(locationPickerSourceLayer).bindTooltip("측정된 GPS 위치");
+  }
+
+  function openLocationPicker(){
+    const source = deviceObservationPosition || lastLivePosition;
+    if(!source){
+      alert("지도의 기준이 될 GPS 위치가 없습니다. GPS를 한 번 더 측정하세요.");
+      return;
+    }
+
+    $("locationPickerModal").classList.remove("hidden");
+    initLocationPickerMap();
+    drawPickerSourcePosition();
+    locationPickerMap.setView([source.lat,source.lon],18,{animate:false});
+    updatePickerCoordinates();
+
+    requestAnimationFrame(()=>locationPickerMap.invalidateSize({pan:false}));
+    setTimeout(()=>{
+      locationPickerMap.invalidateSize({pan:false});
+      locationPickerMap.setView([source.lat,source.lon],18,{animate:false});
+    },180);
+    setTimeout(()=>locationPickerMap.invalidateSize({pan:false}),600);
+  }
+
+  function closeLocationPicker(){
+    $("locationPickerModal").classList.add("hidden");
+  }
+
+  function centerPickerOnMeasuredGps(){
+    const source = deviceObservationPosition || lastLivePosition;
+    if(!source || !locationPickerMap) return;
+    locationPickerMap.setView([source.lat,source.lon],18);
+  }
+
+  function confirmPickerLocation(){
+    if(!locationPickerMap) return;
+    const center = locationPickerMap.getCenter();
+    acceptObservationLocation({
+      lat:center.lat,
+      lon:center.lng,
+      accuracy:Number(deviceObservationPosition?.accuracy || 9999),
+      timestamp:new Date().toISOString()
+    },"map","학생이 지도 중앙으로 지정");
+    closeLocationPicker();
+  }
+
+  function confirmLowAccuracyLocation(){
+    const reason = $("lowAccuracyReason").value;
+    if(!reason){
+      alert("정확도 초과 저장 사유를 선택하세요.");
+      $("lowAccuracyReason").focus();
+      return;
+    }
+    if(!deviceObservationPosition){
+      alert("사용할 GPS 좌표가 없습니다. 다시 측정하세요.");
+      return;
+    }
+    acceptObservationLocation(deviceObservationPosition,"low_accuracy",reason);
+  }
+
   function openObservationModal(){
     if(!currentSurvey || currentSurvey.status !== "진행중"){
       alert("진행 중인 조사가 없습니다.");
       return;
     }
-    measuredObservationPosition = null;
+    resetObservationLocation();
     selectedHabitatTags.clear();
     clearPendingPhoto();
     $("speciesName").value = "";
@@ -2307,6 +2916,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
       navigator.geolocation.clearWatch(measurementWatcher);
       measurementWatcher=null;
     }
+    $("locationPickerModal").classList.add("hidden");
     $("observationModal").classList.add("hidden");
   }
 
@@ -2314,12 +2924,19 @@ svg.leaflet-image-layer.leaflet-interactive path {
     const btn = $("measurePositionBtn");
     btn.disabled = true;
     btn.textContent = "측정 중…";
+    measuredObservationPosition = null;
+    observationLocationMethod = null;
+    observationLocationNote = "";
+    hideLocationFallback();
+    $("locationMethodNote").classList.add("hidden");
+
     try{
-      measuredObservationPosition = await collectBestPosition({
+      const bestPosition = await collectBestPosition({
         maxMs:30000,target:5,limit:10,
         onUpdate:({best,elapsed,maxMs})=>{
           $("measureProgress").style.width = `${Math.min(100,(elapsed/maxMs)*100)}%`;
           if(best){
+            deviceObservationPosition = best;
             const [cls,text] = gpsClass(best.accuracy);
             $("measureAccuracy").innerHTML = `<span class="gps-pill ${cls}">±${Math.round(best.accuracy)}m · ${text}</span>`;
             $("measureMessage").textContent = best.accuracy <= 5
@@ -2330,15 +2947,33 @@ svg.leaflet-image-layer.leaflet-interactive path {
           }
         }
       });
-      const [cls,text] = gpsClass(measuredObservationPosition.accuracy);
-      $("measureAccuracy").innerHTML = `<span class="gps-pill ${cls}">±${Math.round(measuredObservationPosition.accuracy)}m · ${text}</span>`;
+
+      deviceObservationPosition = bestPosition;
+      const [cls,text] = gpsClass(bestPosition.accuracy);
+      $("measureAccuracy").innerHTML =
+        `<span class="gps-pill ${cls}">±${Math.round(bestPosition.accuracy)}m · ${text}</span>`;
       $("measureProgress").style.width = "100%";
-      $("measureMessage").textContent = "좌표가 확보되었습니다. 종 정보를 입력하고 저장하세요.";
+      acceptObservationLocation(bestPosition,"gps","");
       btn.textContent = "GPS 다시 측정";
     }catch(e){
-      measuredObservationPosition = null;
-      $("measureAccuracy").textContent = "측정 실패";
-      $("measureMessage").textContent = e.message;
+      const fallbackPosition = e.best || deviceObservationPosition || lastLivePosition;
+      $("measureProgress").style.width = "100%";
+
+      if(fallbackPosition){
+        deviceObservationPosition = fallbackPosition;
+        const accuracy = Math.round(Number(fallbackPosition.accuracy || 9999));
+        $("measureAccuracy").innerHTML =
+          `<span class="gps-pill gps-bad">±${accuracy}m · 허용 범위 초과</span>`;
+        $("measureMessage").textContent =
+          "10m 이내 좌표를 얻지 못했습니다. 아래 방법 중 하나를 선택하세요.";
+        showLocationFallback(fallbackPosition);
+      }else{
+        deviceObservationPosition = null;
+        measuredObservationPosition = null;
+        $("measureAccuracy").textContent = "측정 실패";
+        $("measureMessage").textContent = e.message;
+        hideLocationFallback();
+      }
       btn.textContent = "GPS 다시 측정";
     }finally{
       btn.disabled = false;
@@ -2355,12 +2990,13 @@ svg.leaflet-image-layer.leaflet-interactive path {
     if(otherSelected && habitatOther){
       savedTags.push(`기타: ${habitatOther}`);
     }
-    if(!measuredObservationPosition){
-      alert("먼저 GPS를 ±10m 이내로 측정하세요.");
+    if(!measuredObservationPosition || !observationLocationMethod){
+      alert("GPS를 측정한 뒤 위치 사용 방법을 확정하세요.");
       return;
     }
-    if(measuredObservationPosition.accuracy > 10){
-      alert("GPS 정확도가 ±10m를 초과합니다. 다시 측정하세요.");
+    if(measuredObservationPosition.accuracy > 10 &&
+       !["map","low_accuracy"].includes(observationLocationMethod)){
+      alert("GPS 정확도가 ±10m를 초과합니다. 지도 지정 또는 정확도 초과 저장을 선택하세요.");
       return;
     }
     if(!species){
@@ -2380,10 +3016,27 @@ svg.leaflet-image-layer.leaflet-interactive path {
     const observationId = crypto.randomUUID ? crypto.randomUUID() : `obs-${Date.now()}`;
     const saveBtn = $("saveObservationBtn");
     saveBtn.disabled = true;
-    saveBtn.textContent = pendingPhotoBlob ? "사진과 기록 저장 중…" : "기록 저장 중…";
+    saveBtn.textContent = "관찰 위치 지도 이미지 생성 중…";
 
     let photoId = null;
+    let mapSnapshotId = null;
     try{
+      const mapSnapshotBlob = await generateObservationMapSnapshot(
+        measuredObservationPosition.lat,
+        measuredObservationPosition.lon,
+        measuredObservationPosition.accuracy
+      );
+      mapSnapshotId = `map-${observationId}`;
+      await putPhoto(mapSnapshotId,mapSnapshotBlob,{
+        mediaType:"map_snapshot",
+        observationId,
+        surveyId:currentSurvey.id,
+        lat:measuredObservationPosition.lat,
+        lon:measuredObservationPosition.lon,
+        accuracy:measuredObservationPosition.accuracy
+      });
+
+      saveBtn.textContent = pendingPhotoBlob ? "사진과 기록 저장 중…" : "기록 저장 중…";
       if(pendingPhotoBlob){
         photoId = `photo-${observationId}`;
         await putPhoto(photoId,pendingPhotoBlob,{
@@ -2392,7 +3045,12 @@ svg.leaflet-image-layer.leaflet-interactive path {
           species,
           lat:measuredObservationPosition.lat,
           lon:measuredObservationPosition.lon,
-          accuracy:measuredObservationPosition.accuracy
+          accuracy:measuredObservationPosition.accuracy,
+          deviceLat:deviceObservationPosition?.lat ?? measuredObservationPosition.lat,
+          deviceLon:deviceObservationPosition?.lon ?? measuredObservationPosition.lon,
+          deviceAccuracy:deviceObservationPosition?.accuracy ?? measuredObservationPosition.accuracy,
+          locationMethod:observationLocationMethod,
+          locationNote:observationLocationNote
         });
       }
 
@@ -2405,14 +3063,21 @@ svg.leaflet-image-layer.leaflet-interactive path {
         lat:measuredObservationPosition.lat,
         lon:measuredObservationPosition.lon,
         accuracy:measuredObservationPosition.accuracy,
+        deviceLat:deviceObservationPosition?.lat ?? measuredObservationPosition.lat,
+        deviceLon:deviceObservationPosition?.lon ?? measuredObservationPosition.lon,
+        deviceAccuracy:deviceObservationPosition?.accuracy ?? measuredObservationPosition.accuracy,
+        locationMethod:observationLocationMethod,
+        locationNote:observationLocationNote,
         time:new Date().toISOString(),
-        photoId
+        photoId,
+        mapSnapshotId
       });
       saveJson(STORAGE.draft,currentSurvey);
       closeObservationModal();
       renderSurvey();
     }catch(e){
       if(photoId) await deletePhoto(photoId);
+      if(mapSnapshotId) await deletePhoto(mapSnapshotId);
       alert(`저장하지 못했습니다: ${e.message}`);
     }finally{
       saveBtn.disabled = false;
@@ -2420,28 +3085,86 @@ svg.leaflet-image-layer.leaflet-interactive path {
     }
   }
 
+  function updateReflectionCounter(){
+    const text = $("surveyReflection").value;
+    $("reflectionCharCount").textContent = text.length;
+  }
+
+  function saveReflectionDraft(){
+    if(!currentSurvey || !isDraftSurvey(currentSurvey)) return;
+    currentSurvey.reflection = $("surveyReflection").value;
+    saveJson(STORAGE.draft,currentSurvey);
+    updateReflectionCounter();
+  }
+
+  function closeFinishModal(){
+    saveReflectionDraft();
+    $("finishModal").classList.add("hidden");
+  }
+
   function openFinishModal(){
-    if(!currentSurvey) return;
+    if(!currentSurvey || !isDraftSurvey(currentSurvey)) return;
     const totalIndividuals = currentSurvey.observations.reduce((s,o)=>s+Number(o.count||0),0);
-    const uniqueSpecies = new Set(currentSurvey.observations.map(o=>o.species.trim().toLowerCase())).size;
+    const uniqueSpecies = new Set(
+      currentSurvey.observations.map(o=>o.species.trim().toLowerCase())
+    ).size;
+    const photoCount = currentSurvey.observations.filter(o=>o.photoId).length;
     const duration = formatDuration(new Date()-new Date(currentSurvey.startTime));
+
     $("finishSummary").innerHTML = `
       <div><b>조사 구간</b> ${escapeHtml(currentSurvey.zone?.name || "미지정")}</div>
       <div style="margin-top:8px"><b>조사 시간</b> ${formatTime(currentSurvey.startTime)} ~ ${formatTime(new Date())} (${duration})</div>
       <div style="margin-top:8px"><b>관찰 결과</b> ${uniqueSpecies}종 · ${totalIndividuals}개체 · ${currentSurvey.observations.length}건</div>
+      <div style="margin-top:8px"><b>관찰 사진</b> ${photoCount}장</div>
       <div style="margin-top:8px"><b>이동 거리</b> ${Math.round(currentSurvey.distance)}m</div>
     `;
+
+    $("surveyReflection").value = currentSurvey.reflection || "";
+    updateReflectionCounter();
     $("finishModal").classList.remove("hidden");
+    setTimeout(()=>$("surveyReflection").focus(),120);
   }
 
   function finishSurvey(){
-    if(!currentSurvey) return;
-    currentSurvey.endTime = new Date().toISOString();
-    currentSurvey.endPosition = lastLivePosition || currentSurvey.route[currentSurvey.route.length-1];
-    currentSurvey.status = "완료";
+    if(!currentSurvey || !isDraftSurvey(currentSurvey)) return;
+
+    const reflection = $("surveyReflection").value.trim();
+    if(!reflection){
+      alert("조사 소감 및 특이사항을 작성하세요.");
+      $("surveyReflection").focus();
+      return;
+    }
+
+    const totalIndividuals = currentSurvey.observations.reduce(
+      (sum,o)=>sum+Number(o.count||0),0
+    );
+    const uniqueSpecies = new Set(
+      currentSurvey.observations.map(o=>o.species.trim().toLowerCase())
+    ).size;
+
+    const confirmed = confirm(
+      `최종 제출하시겠습니까?\n\n` +
+      `관찰 결과: ${uniqueSpecies}종 ${totalIndividuals}개체\n` +
+      `관찰 기록: ${currentSurvey.observations.length}건\n\n` +
+      `제출 후에는 학생 화면에서 수정하거나 삭제할 수 없습니다.`
+    );
+    if(!confirmed) return;
+
+    const now = new Date().toISOString();
+    currentSurvey.reflection = reflection;
+    currentSurvey.endTime = now;
+    currentSurvey.endPosition =
+      lastLivePosition || currentSurvey.route[currentSurvey.route.length-1] || null;
+    currentSurvey.submittedAt = now;
+    currentSurvey.submissionStatus = "submitted";
+    currentSurvey.status = "submitted";
+
     const history = loadJson(STORAGE.history,[]);
+    const existingIndex = history.findIndex(s=>s.id===currentSurvey.id);
+    if(existingIndex >= 0) history.splice(existingIndex,1);
     history.unshift(currentSurvey);
     saveJson(STORAGE.history,history);
+
     localStorage.removeItem(STORAGE.draft);
     stopRouteWatch();
     stopTimer();
@@ -2450,6 +3173,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
     resetMapLayers();
     renderHistory();
     showView("history");
+    alert("조사 기록이 최종 제출되었습니다.");
   }
 
   function renderHistory(){
@@ -2464,13 +3188,17 @@ svg.leaflet-image-layer.leaflet-interactive path {
       const total = (s.observations||[]).reduce((a,o)=>a+Number(o.count||0),0);
       return `
         <div class="history-item">
-          <div class="history-title">${escapeHtml(s.date)} · ${escapeHtml(s.zone?.name || "미지정")}</div>
+          <div class="history-title">
+            <span>${escapeHtml(s.date)} · ${escapeHtml(s.zone?.name || "미지정")}</span>
+            ${isSubmittedSurvey(s) ? `<span class="submission-badge">최종 제출 완료</span>` : ""}
+          </div>
           <div class="history-meta">
             ${escapeHtml(s.participant)} · ${formatTime(s.startTime)}~${formatTime(s.endTime)} · ${uniqueSpecies}종 ${total}개체 · ${(s.observations||[]).length}건
+            ${s.submittedAt ? `<br>제출: ${formatTime(s.submittedAt,true)}` : ""}
+            ${s.reflection ? `<br>소감: ${escapeHtml(s.reflection.length > 70 ? s.reflection.slice(0,70)+"…" : s.reflection)}` : ""}
           </div>
           <div class="btn-row" style="margin-top:10px">
-            <button class="btn ghost" onclick="window.__openHistory(${idx})">보기</button>
-            <button class="btn danger" onclick="window.__deleteHistory(${idx})">삭제</button>
+            <button class="btn ghost" onclick="window.__openHistory(${idx})">제출 내용 보기</button>
           </div>
         </div>
       `;
@@ -2488,11 +3216,17 @@ svg.leaflet-image-layer.leaflet-interactive path {
   };
 
   window.__deleteHistory = async (idx)=>{
-    if(!confirm("이 조사 기록을 삭제할까요? 사진도 함께 삭제됩니다.")) return;
     const history = loadJson(STORAGE.history,[]);
+    const target = history[idx];
+    if(isSubmittedSurvey(target)){
+      alert("최종 제출된 조사 기록은 학생 화면에서 삭제할 수 없습니다.");
+      return;
+    }
+    if(!confirm("이 조사 기록을 삭제할까요? 사진도 함께 삭제됩니다.")) return;
     const removed = history.splice(idx,1)[0];
     for(const o of (removed?.observations || [])){
       if(o.photoId) await deletePhoto(o.photoId);
+      if(o.mapSnapshotId) await deletePhoto(o.mapSnapshotId);
     }
     saveJson(STORAGE.history,history);
     renderHistory();
@@ -2502,16 +3236,22 @@ svg.leaflet-image-layer.leaflet-interactive path {
     const history = loadJson(STORAGE.history,[]);
     if(!history.length){alert("내보낼 기록이 없습니다.");return}
     const rows = [[
-      "조사일자","참여자","조사구간","시작시간","종료시간","날씨","종명","개체수",
-      "출현지역·서식특성","발견시각","위도","경도","GPS정확도(m)","사진여부","사진ID"
+      "조사일자","참여자","조사구간","시작시간","종료시간","제출상태","제출시각","조사소감","날씨","종명","개체수",
+      "출현지역·서식특성","발견시각","최종위도","최종경도","GPS정확도(m)","위치입력방식",
+      "원본GPS위도","원본GPS경도","원본GPS정확도(m)","위치메모","사진여부","사진ID"
     ]];
     history.forEach(s=>{
       (s.observations||[]).forEach(o=>{
         rows.push([
           s.date,s.participant,s.zone?.name||"",
-          formatTime(s.startTime,true),formatTime(s.endTime,true),weatherText(s.weather),
+          formatTime(s.startTime,true),formatTime(s.endTime,true),
+          isSubmittedSurvey(s) ? "최종 제출" : (s.status || ""),
+          s.submittedAt ? formatTime(s.submittedAt,true) : "",
+          s.reflection || "",weatherText(s.weather),
           o.species,o.count,[...(o.tags||[]),o.habitat||""].filter(Boolean).join(" / "),
-          formatTime(o.time,true),o.lat,o.lon,o.accuracy,o.photoId ? "있음" : "없음",o.photoId || ""
+          formatTime(o.time,true),o.lat,o.lon,o.accuracy,locationMethodLabel(o.locationMethod || "gps"),
+          o.deviceLat ?? o.lat,o.deviceLon ?? o.lon,o.deviceAccuracy ?? o.accuracy,o.locationNote || "",
+          o.photoId ? "있음" : "없음",o.photoId || ""
         ]);
       });
     });
@@ -2556,7 +3296,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
         });
         setTimeout(()=>{if(routeMap) routeMap.invalidateSize({pan:false})},250);
         setTimeout(()=>{if(routeMap) routeMap.invalidateSize({pan:false})},900);
-        if(currentSurvey.status==="진행중"){
+        if(isDraftSurvey(currentSurvey)){
           $("addObservationBtn").classList.remove("hidden");
           $("finishSurveyBtn").classList.remove("hidden");
         }else{
@@ -2617,6 +3357,14 @@ svg.leaflet-image-layer.leaflet-interactive path {
   $("finishSurveyBtn").addEventListener("click",openFinishModal);
   $("closeObsModal").addEventListener("click",closeObservationModal);
   $("measurePositionBtn").addEventListener("click",measureObservationPosition);
+  $("mapSelectLocationBtn").addEventListener("click",openLocationPicker);
+  $("showLowAccuracyBtn").addEventListener("click",()=>{
+    $("lowAccuracyReasonWrap").classList.toggle("hidden");
+  });
+  $("confirmLowAccuracyBtn").addEventListener("click",confirmLowAccuracyLocation);
+  $("closeLocationPicker").addEventListener("click",closeLocationPicker);
+  $("pickerCurrentGpsBtn").addEventListener("click",centerPickerOnMeasuredGps);
+  $("confirmPickerLocationBtn").addEventListener("click",confirmPickerLocation);
   $("saveObservationBtn").addEventListener("click",saveObservation);
   $("photoInput").addEventListener("change",handlePhotoSelection);
   $("removePhotoBtn").addEventListener("click",clearPendingPhoto);
@@ -2634,9 +3382,10 @@ svg.leaflet-image-layer.leaflet-interactive path {
     const last = inputs[inputs.length-1];
     if(last){last.focus();last.select();}
   });
-  $("closeFinishModal").addEventListener("click",()=>$("finishModal").classList.add("hidden"));
+  $("closeFinishModal").addEventListener("click",closeFinishModal);
+  $("continueSurveyBtn").addEventListener("click",closeFinishModal);
+  $("surveyReflection").addEventListener("input",saveReflectionDraft);
   $("confirmFinishBtn").addEventListener("click",finishSurvey);
-  $("printCurrentBtn").addEventListener("click",()=>window.print());
   $("exportCsvBtn").addEventListener("click",exportCsv);
   $("exportJsonBtn").addEventListener("click",exportJson);
   $("countMinus").addEventListener("click",()=>{
@@ -2690,7 +3439,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
   checkSecureContext();
   renderHistory();
 
-  if(currentSurvey && currentSurvey.status==="진행중"){
+  if(currentSurvey && isDraftSurvey(currentSurvey)){
     if(confirm("작성 중인 조사 기록이 있습니다. 이어서 진행할까요?")){
       enterSurveyMode();
     }else{
