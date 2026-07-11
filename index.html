@@ -748,12 +748,26 @@ svg.leaflet-image-layer.leaflet-interactive path {
     .hero-action{padding:18px;font-size:17px}
     .muted{color:var(--muted);font-size:13px;line-height:1.45}
     .hidden{display:none!important}
+    .survey-actions{
+      position:sticky;top:68px;z-index:19;margin:0 0 12px;padding:9px;
+      background:rgba(255,255,255,.94);backdrop-filter:blur(10px);
+      border:1px solid var(--line);border-radius:15px;box-shadow:0 5px 18px rgba(28,53,39,.08)
+    }
+    .survey-actions .btn{padding:11px 13px}
     .survey-head{
       background:linear-gradient(135deg,#176b4d,#25875f);color:white;border:0
     }
     .survey-head .sub,.survey-head .muted{color:rgba(255,255,255,.8)}
     .big-number{font-size:28px;font-weight:900}
-    .metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}
+    .gps-summary-line{display:flex;align-items:baseline;gap:8px;margin-top:3px;color:var(--muted)}
+    .gps-summary-line strong{color:var(--text);font-size:15px}
+    .gps-details{margin-top:12px;border-top:1px solid var(--line);padding-top:9px}
+    .gps-details summary{cursor:pointer;color:var(--primary-2);font-size:12px;font-weight:900;list-style:none}
+    .gps-details summary::-webkit-details-marker{display:none}
+    .gps-details summary::before{content:"＋";display:inline-block;margin-right:5px;font-size:14px}
+    .gps-details[open] summary::before{content:"−"}
+    .gps-details .status-grid{margin-top:10px}
+    .metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px}
     .metric{background:rgba(255,255,255,.12);border-radius:14px;padding:12px;text-align:center}
     .metric .n{font-size:20px;font-weight:900}
     .metric .t{font-size:11px;margin-top:3px;color:rgba(255,255,255,.78)}
@@ -761,17 +775,27 @@ svg.leaflet-image-layer.leaflet-interactive path {
     canvas{width:100%;height:220px;background:#f8faf9;border:1px solid var(--line);border-radius:14px}
     .route-legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:8px;font-size:12px;color:var(--muted)}
     .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px}
-    .obs-list{display:flex;flex-direction:column;gap:10px}
+    .obs-list{display:flex;flex-direction:column;gap:14px}
     .obs{
-      border:1px solid var(--line);border-radius:15px;padding:13px;background:#fbfcfb
+      border:1px solid #cbdad1;border-left:5px solid var(--primary);border-radius:16px;
+      padding:14px;background:#fbfdfb;box-shadow:0 4px 12px rgba(28,53,39,.06)
     }
     .obs{position:relative;isolation:isolate;overflow:hidden}
-    .obs-top{display:block;min-width:0}
+    .obs-card-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding-bottom:11px;border-bottom:1px solid #e2ebe5}
+    .obs-index{font-size:12px;font-weight:900;color:var(--primary-2);letter-spacing:.01em}
+    .obs-time{margin-top:3px;font-size:12px;color:var(--muted)}
+    .obs-top{display:block;min-width:0;padding-top:11px}
     .obs-heading{display:flex;align-items:baseline;gap:9px;min-width:0;flex-wrap:nowrap}
     .obs-name{font-weight:900;font-size:16px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
     .obs-count{font-weight:900;color:var(--primary);white-space:nowrap;flex:0 0 auto;font-size:15px}
     .obs-meta{font-size:12px;color:var(--muted);margin-top:6px;line-height:1.5}
     .obs-habitat{margin-top:8px;font-size:13px;line-height:1.5}
+    .obs-details{margin-top:12px;border-top:1px solid #e2ebe5;padding-top:10px}
+    .obs-details summary{cursor:pointer;color:var(--primary-2);font-size:12px;font-weight:900;list-style:none}
+    .obs-details summary::-webkit-details-marker{display:none}
+    .obs-details summary::before{content:"＋";display:inline-block;margin-right:5px;font-size:14px}
+    .obs-details[open] summary::before{content:"−"}
+    .obs-details-body{padding-top:2px}
     .chips{display:flex;flex-wrap:wrap;gap:7px}
     .chip{
       border:1px solid var(--line);background:white;border-radius:999px;padding:8px 11px;font-size:13px
@@ -998,7 +1022,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
     .print-only{display:none}
     @media (max-width:520px){
       .status-grid{grid-template-columns:1fr 1fr}
-      .metrics{grid-template-columns:repeat(3,1fr)}
+      .metrics{grid-template-columns:repeat(2,1fr)}
       .metric{padding:10px 5px}
       .metric .n{font-size:18px}
       .zone-edit-row{grid-template-columns:1fr 38px 38px 38px}
@@ -1085,6 +1109,12 @@ svg.leaflet-image-layer.leaflet-interactive path {
     </section>
 
     <section id="surveyView" class="hidden">
+      <div class="survey-actions no-print">
+        <div class="btn-row">
+          <button class="btn primary" id="addObservationBtn">＋ 종 기록</button>
+          <button class="btn danger" id="finishSurveyBtn">조사 종료</button>
+        </div>
+      </div>
       <div class="card survey-head">
         <div class="sub" id="surveyDateText">-</div>
         <div class="big-number" id="surveyZoneText">조사 구간 확인 중</div>
@@ -1102,6 +1132,10 @@ svg.leaflet-image-layer.leaflet-interactive path {
             <div class="n" id="individualCountText">0</div>
             <div class="t">총 개체수</div>
           </div>
+          <div class="metric">
+            <div class="n" id="observationRecordCountText">0</div>
+            <div class="t">관찰 기록</div>
+          </div>
         </div>
       </div>
 
@@ -1113,24 +1147,27 @@ svg.leaflet-image-layer.leaflet-interactive path {
 
       <div id="liveGpsCard" class="card no-print">
         <h2>현재 GPS <span id="liveGpsPill" class="gps-pill gps-bad">대기 중</span></h2>
-        <div class="status-grid">
-          <div class="status-item">
-            <div class="label">위도</div>
-            <div class="value" id="liveLat">-</div>
-          </div>
-          <div class="status-item">
-            <div class="label">경도</div>
-            <div class="value" id="liveLon">-</div>
-          </div>
-          <div class="status-item">
-            <div class="label">정확도</div>
-            <div class="value" id="liveAcc">-</div>
-          </div>
-          <div class="status-item">
-            <div class="label">이동 거리</div>
-            <div class="value" id="distanceText">0m</div>
-          </div>
+        <div class="gps-summary-line">
+          <span class="tiny">이동 거리</span>
+          <strong id="distanceText">0m</strong>
         </div>
+        <details class="gps-details">
+          <summary>GPS 상세 보기</summary>
+          <div class="status-grid">
+            <div class="status-item">
+              <div class="label">위도</div>
+              <div class="value" id="liveLat">-</div>
+            </div>
+            <div class="status-item">
+              <div class="label">경도</div>
+              <div class="value" id="liveLon">-</div>
+            </div>
+            <div class="status-item">
+              <div class="label">정확도</div>
+              <div class="value" id="liveAcc">-</div>
+            </div>
+          </div>
+        </details>
       </div>
 
       <div id="submittedLocationCard" class="card submitted-location-card hidden">
@@ -1176,16 +1213,9 @@ svg.leaflet-image-layer.leaflet-interactive path {
       </div>
 
       <div class="card">
-        <h2>관찰 기록 <span class="tiny" id="obsCountLabel">0건</span></h2>
+        <h2>관찰 기록 <span class="tiny hidden" id="obsCountLabel">0건</span></h2>
         <div id="obsList" class="obs-list">
           <div class="muted">아직 기록된 종이 없습니다.</div>
-        </div>
-      </div>
-
-      <div class="card no-print">
-        <div class="btn-row">
-          <button class="btn primary" id="addObservationBtn">＋ 종 기록</button>
-          <button class="btn danger" id="finishSurveyBtn">조사 종료</button>
         </div>
       </div>
     </section>
@@ -2157,6 +2187,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
     const totalIndividuals = currentSurvey.observations.reduce((sum,o)=>sum+Number(o.count||0),0);
     $("speciesCountText").textContent = uniqueSpecies;
     $("individualCountText").textContent = totalIndividuals;
+    $("observationRecordCountText").textContent = currentSurvey.observations.length;
     $("distanceText").textContent = currentSurvey.distance >= 1000
       ? `${(currentSurvey.distance/1000).toFixed(2)}km`
       : `${Math.round(currentSurvey.distance)}m`;
@@ -2378,40 +2409,51 @@ svg.leaflet-image-layer.leaflet-interactive path {
     }
     list.innerHTML = obs.map((o,idx)=>`
       <article class="obs">
-        ${o.photoId ? `<img class="obs-photo hidden" data-photo-id="${escapeHtml(o.photoId)}" alt="${escapeHtml(o.species)} 사진">` : ""}
+        <div class="obs-card-header">
+          <div>
+            <div class="obs-index">관찰 기록 ${idx + 1}</div>
+            <div class="obs-time">${formatTime(o.time,true)}</div>
+          </div>
+          <div class="obs-count">${o.count}개체</div>
+        </div>
         <div class="obs-top">
           <div class="obs-heading">
             <div class="obs-name">${escapeHtml(o.species)}</div>
-            <div class="obs-count">${o.count}개체</div>
           </div>
           <div class="obs-meta">
-            ${formatTime(o.time,true)} · GPS ${o.lat.toFixed(6)}, ${o.lon.toFixed(6)} · 정확도 ±${Math.round(o.accuracy)}m${o.locationMethod ? ` · ${locationMethodLabel(o.locationMethod)}` : ""}
+            GPS ${o.lat.toFixed(6)}, ${o.lon.toFixed(6)} · 정확도 ±${Math.round(o.accuracy)}m${o.locationMethod ? ` · ${locationMethodLabel(o.locationMethod)}` : ""}
           </div>
         </div>
-        <div class="obs-habitat">
-          ${o.tags?.length ? `<div class="tiny">${o.tags.map(escapeHtml).join(" · ")}</div>` : ""}
-          ${o.habitat ? escapeHtml(o.habitat) : ""}
-        </div>
-        <div class="obs-map-shell">
-          <div class="obs-map-title">
-            관찰 위치 · ${Number(o.lat).toFixed(6)}, ${Number(o.lon).toFixed(6)}
-            · 정확도 ±${Math.round(Number(o.accuracy || 0))}m
-          </div>
-          <div class="obs-map-image-wrap">
-            <img class="obs-map-image hidden"
-              data-observation-index="${idx}"
-              data-map-snapshot-id="${escapeHtml(o.mapSnapshotId || "")}"
-              alt="${escapeHtml(o.species)} 관찰 위치 지도 이미지">
-            <div class="obs-map-image-status" data-map-status-index="${idx}">
-              지도 이미지 불러오는 중…
+        <details class="obs-details">
+          <summary>사진·위치·서식지 상세 보기</summary>
+          <div class="obs-details-body">
+            ${o.photoId ? `<img class="obs-photo hidden" data-photo-id="${escapeHtml(o.photoId)}" alt="${escapeHtml(o.species)} 사진">` : ""}
+            <div class="obs-habitat">
+              ${o.tags?.length ? `<div class="tiny">${o.tags.map(escapeHtml).join(" · ")}</div>` : ""}
+              ${o.habitat ? escapeHtml(o.habitat) : ""}
             </div>
+            <div class="obs-map-shell">
+              <div class="obs-map-title">
+                관찰 위치 · ${Number(o.lat).toFixed(6)}, ${Number(o.lon).toFixed(6)}
+                · 정확도 ±${Math.round(Number(o.accuracy || 0))}m
+              </div>
+              <div class="obs-map-image-wrap">
+                <img class="obs-map-image hidden"
+                  data-observation-index="${idx}"
+                  data-map-snapshot-id="${escapeHtml(o.mapSnapshotId || "")}"
+                  alt="${escapeHtml(o.species)} 관찰 위치 지도 이미지">
+                <div class="obs-map-image-status" data-map-status-index="${idx}">
+                  지도 이미지 불러오는 중…
+                </div>
+              </div>
+            </div>
+            ${isDraftSurvey(currentSurvey) ? `
+              <div class="btn-row no-print" style="margin-top:10px">
+                <button class="btn ghost" onclick="window.__deleteObservation(${idx})">삭제</button>
+              </div>
+            ` : ""}
           </div>
-        </div>
-        ${isDraftSurvey(currentSurvey) ? `
-          <div class="btn-row no-print" style="margin-top:10px">
-            <button class="btn ghost" onclick="window.__deleteObservation(${idx})">삭제</button>
-          </div>
-        ` : ""}
+        </details>
       </article>
     `).join("");
     hydrateObservationPhotos();
