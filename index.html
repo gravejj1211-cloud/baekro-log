@@ -2150,7 +2150,6 @@ svg.leaflet-image-layer.leaflet-interactive path {
     if(!zones.length) zones = [...defaultZones];
     let habitatOptions = Array.isArray(source.habitatOptions) ? source.habitatOptions : defaultHabitatOptions;
     habitatOptions = habitatOptions.map(option=>String(option ?? "").trim()).filter(Boolean);
-    if(!habitatOptions.length) habitatOptions = [...defaultHabitatOptions];
     return {
       zones,
       habitatOptions
@@ -5622,7 +5621,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
         uniqueHabitatOptions.push(option);
       }
     });
-    settings.habitatOptions = uniqueHabitatOptions.length ? uniqueHabitatOptions : [...defaultHabitatOptions];
+    settings.habitatOptions = uniqueHabitatOptions;
 
     if(!settings.zones.length){
       alert("조사 구간을 한 개 이상 입력하세요.");
