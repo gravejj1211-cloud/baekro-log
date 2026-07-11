@@ -789,8 +789,12 @@ svg.leaflet-image-layer.leaflet-interactive path {
     .survey-actions .btn{flex:1 1 0;min-width:0;padding:9px 10px;font-size:12px;white-space:nowrap;pointer-events:auto;box-shadow:0 8px 20px rgba(28,53,39,.18)}
     .survey-actions .btn.danger{background:#fff;color:var(--bad);border:1px solid #e9aaa4}
     .survey-head{
-      background:linear-gradient(135deg,#176b4d,#25875f);color:white;border:0
+      background:linear-gradient(135deg,#176b4d,#25875f);color:white;border:0;padding:14px 16px
     }
+    .survey-meta-row{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr) minmax(0,1fr);align-items:center;gap:10px;min-width:0}
+    .survey-zone-label{font-size:18px;font-weight:900;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .survey-time-label{font-size:12px;color:rgba(255,255,255,.78);white-space:nowrap}
+    .survey-weather-label{font-size:13px;font-weight:800;color:#f8df9b;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .survey-head .sub,.survey-head .muted{color:rgba(255,255,255,.8)}
     .big-number{font-size:28px;font-weight:900}
     .teacher-dashboard-head{background:linear-gradient(135deg,#304b68,#456b8e);color:white;border:0}
@@ -1119,6 +1123,9 @@ svg.leaflet-image-layer.leaflet-interactive path {
       .status-grid{grid-template-columns:1fr 1fr}
       .signup-number-row{gap:6px}
       .metrics{grid-template-columns:repeat(2,1fr)}
+      .survey-meta-row{gap:6px}
+      .survey-zone-label{font-size:15px}
+      .survey-time-label,.survey-weather-label{font-size:11px}
       .metric{padding:10px 5px}
       .metric .n{font-size:18px}
       .zone-edit-row{grid-template-columns:1fr 38px 38px 38px}
@@ -1330,13 +1337,15 @@ svg.leaflet-image-layer.leaflet-interactive path {
         </div>
       </div>
       <div class="card survey-head">
-        <div class="sub" id="surveyDateText">-</div>
-        <div class="big-number" id="surveyZoneText">조사 구간 확인 중</div>
-        <div class="sub" id="surveyWeatherText">날씨 확인 중</div>
+        <div class="survey-meta-row">
+          <div class="survey-zone-label" id="surveyZoneText">조사 구간 확인 중</div>
+          <div class="survey-time-label" id="surveyDateText">-</div>
+          <div class="survey-weather-label" id="surveyWeatherText">날씨 확인 중</div>
+        </div>
         <div class="metrics">
           <div class="metric">
             <div class="n" id="elapsedText">00:00</div>
-            <div class="t">조사 시간</div>
+            <div class="t">소요 시간</div>
           </div>
           <div class="metric">
             <div class="n" id="speciesCountText">0</div>
@@ -2580,7 +2589,9 @@ svg.leaflet-image-layer.leaflet-interactive path {
 
   function renderSurvey(){
     if(!currentSurvey) return;
-    $("surveyDateText").textContent = `${currentSurvey.date} · ${currentSurvey.participant}`;
+    $("surveyDateText").textContent = currentSurvey.startTime
+      ? formatTime(currentSurvey.startTime,true)
+      : currentSurvey.date || "-";
     $("surveyZoneText").textContent = currentSurvey.zone?.name || "미지정";
     $("surveyWeatherText").textContent = weatherText(currentSurvey.weather);
 
