@@ -1290,9 +1290,12 @@ svg.leaflet-image-layer.leaflet-interactive path {
     <section id="surveyView" class="hidden">
       <div id="surveyActions" class="survey-actions no-print">
         <div class="btn-row">
-          <button class="btn primary" id="addObservationBtn">＋ 종 기록</button>
-          <button class="btn danger" id="finishSurveyBtn">조사 종료</button>
+          <button type="button" class="btn primary" id="addObservationBtn">＋ 종 기록</button>
+          <button type="button" class="btn danger" id="finishSurveyBtn">조사 종료</button>
         </div>
+      </div>
+      <div id="teacherRecordActions" class="no-print hidden" style="margin-bottom:12px">
+        <button type="button" class="btn ghost" id="returnTeacherBtn">← 교사 화면으로 돌아가기</button>
       </div>
       <div class="card survey-head">
         <div class="sub" id="surveyDateText">-</div>
@@ -1612,7 +1615,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
       <textarea id="habitatText" placeholder="예: 물가의 얕은 곳에서 먹이활동 중"></textarea>
     </div>
 
-    <button class="btn primary block" id="saveObservationBtn">기록 저장</button>
+    <button type="button" class="btn primary block" id="saveObservationBtn">기록 저장</button>
   </div>
 </div>
 
@@ -1810,6 +1813,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
   let mapTileErrorCount = 0;
   let pendingPhotoBlob = null;
   let pendingPhotoObjectUrl = null;
+  let teacherRecordReturn = false;
   const photoUrlCache = new Map();
   const PHOTO_DB_NAME = "egretSurveyMediaDB_v1";
   const PHOTO_STORE = "photos";
@@ -2429,6 +2433,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
 
     const draft = isDraftSurvey(currentSurvey);
     $("surveyActions").classList.toggle("hidden",!draft);
+    $("teacherRecordActions").classList.toggle("hidden",draft || !teacherRecordReturn);
     $("liveGpsCard").classList.toggle("hidden",!draft);
     $("submittedLocationCard").classList.toggle("hidden",draft);
     $("routeMapControls").classList.toggle("hidden",!draft);
@@ -3466,6 +3471,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
       });
       saveJson(STORAGE.draft,currentSurvey);
       closeObservationModal();
+      showView("survey");
       renderSurvey();
     }catch(e){
       if(photoId) await deletePhoto(photoId);
@@ -4228,6 +4234,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
   window.__openHistory = (idx)=>{
     const history = loadJson(STORAGE.history,[]);
     currentSurvey = history[idx];
+    teacherRecordReturn = false;
     resetMapLayers();
     showView("survey");
     renderSurvey();
@@ -4239,6 +4246,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
     const survey = teacherHistoryCache.find(item=>item.id === surveyId);
     if(!survey) return;
     currentSurvey = survey;
+    teacherRecordReturn = true;
     resetMapLayers();
     showView("survey");
     renderSurvey();
@@ -4654,6 +4662,10 @@ svg.leaflet-image-layer.leaflet-interactive path {
   $("fitRouteBtn").addEventListener("click",fitAllRoutePoints);
   $("settingsBtn").addEventListener("click",openTeacherSettings);
   $("teacherBackHomeBtn").addEventListener("click",()=>showView("home"));
+  $("returnTeacherBtn").addEventListener("click",()=>{
+    teacherRecordReturn = false;
+    showView("teacher");
+  });
   document.querySelectorAll("[data-teacher-tab]").forEach(btn=>
     btn.addEventListener("click",()=>setTeacherTab(btn.dataset.teacherTab))
   );
