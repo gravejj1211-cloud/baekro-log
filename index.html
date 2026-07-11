@@ -698,8 +698,8 @@ svg.leaflet-image-layer.leaflet-interactive path {
       backdrop-filter:blur(10px);border-bottom:1px solid var(--line)
     }
     .title-wrap{display:flex;gap:9px;align-items:center;min-width:0}
-    .brand-mark{width:36px;height:40px;overflow:hidden;flex:0 0 36px;display:flex;align-items:center}
-    .brand-mark img{height:43px;width:auto;max-width:none;display:block}
+    .brand-mark{width:40px;height:40px;overflow:hidden;flex:0 0 40px;display:flex;align-items:center}
+    .brand-mark img{width:40px;height:40px;object-fit:contain;display:block}
     .brand-copy{min-width:0;line-height:1}
     .brand-school{font-size:12px;font-weight:900;letter-spacing:-.08em;color:#28458f;white-space:nowrap}
     .brand-app{margin-top:5px;font-size:18px;font-weight:900;letter-spacing:-.07em;color:#2f6b4f;white-space:nowrap}
@@ -709,6 +709,8 @@ svg.leaflet-image-layer.leaflet-interactive path {
       width:40px;height:40px;border:1px solid var(--line);border-radius:12px;
       background:white;color:var(--text);display:grid;place-items:center;font-size:18px
     }
+    .header-tools{display:flex;align-items:center;gap:8px;min-width:0}
+    .teacher-name{padding-left:8px;border-left:1px solid var(--line);font-size:11px;font-weight:900;color:#2f6b4f;white-space:nowrap}
     main{padding:16px}
     .banner{
       border:1px solid #f1c6c1;background:#fff2f0;color:#7a271a;
@@ -1044,6 +1046,14 @@ svg.leaflet-image-layer.leaflet-interactive path {
     .photo-status{margin-top:7px;min-height:18px}
     .print-only{display:none}
     @media (max-width:520px){
+      .topbar{padding:10px 12px}
+      .brand-mark{width:34px;height:34px;flex-basis:34px}
+      .brand-mark img{width:34px;height:34px}
+      .brand-app{font-size:15px}
+      .brand-school{font-size:10px}
+      .header-tools{gap:5px}
+      .teacher-name{font-size:10px;padding-left:5px}
+      .icon-btn{width:36px;height:36px;font-size:16px}
       .status-grid{grid-template-columns:1fr 1fr}
       .metrics{grid-template-columns:repeat(2,1fr)}
       .metric{padding:10px 5px}
@@ -1073,14 +1083,17 @@ svg.leaflet-image-layer.leaflet-interactive path {
   <header class="topbar">
     <div class="title-wrap">
       <div class="brand-mark">
-        <img src="assets/muwidang-school-reference.png" alt="무위당 마크" />
+        <img src="assets/muwidang-mark.png" alt="무위당 마크" />
       </div>
       <div class="brand-copy" aria-label="무위당학교 학교숲 시민과학자">
         <div class="brand-school">무위당학교</div>
         <div class="brand-app">학교숲 시민과학자</div>
       </div>
     </div>
-    <button class="icon-btn" id="settingsBtn" aria-label="설정">⚙️</button>
+    <div class="header-tools">
+      <span class="teacher-name">숲선생님 박은경</span>
+      <button class="icon-btn" id="settingsBtn" aria-label="설정">⚙️</button>
+    </div>
   </header>
 
   <main>
