@@ -1935,6 +1935,10 @@ svg.leaflet-image-layer.leaflet-interactive path {
   }
 
   function openTeacherSettings(){
+    if(teacherUnlocked && $("teacherView").classList.contains("hidden")){
+      showView("teacher");
+      return;
+    }
     $("settingsModal").classList.remove("hidden");
     $("teacherPinInput").value = "";
     $("teacherPinConfirm").value = "";
@@ -2095,12 +2099,12 @@ svg.leaflet-image-layer.leaflet-interactive path {
 
     const btn = $("startSurveyBtn");
     btn.disabled = true;
-    btn.textContent = "GPS 정밀 측정 중… · 30초";
+    btn.textContent = "GPS 정밀 측정 중… · 15초";
     $("homeGpsValue").textContent = "±5m 목표로 측정 중";
 
     try{
       const best = await collectBestPosition({
-        maxMs:30000,
+        maxMs:15000,
         target:5,
         limit:10,
         onUpdate:({best,elapsed,maxMs})=>{
@@ -3122,7 +3126,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
 
     try{
       const bestPosition = await collectBestPosition({
-        maxMs:30000,target:5,limit:10,
+        maxMs:15000,target:5,limit:10,
         onUpdate:({best,elapsed,maxMs})=>{
           $("measureProgress").style.width = `${Math.min(100,(elapsed/maxMs)*100)}%`;
           if(best){
