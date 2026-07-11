@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#176b4d" />
-  <title>학교숲 시민과학자 v18</title>
+  <title>학교숲 시민과학자</title>
 <style>
 /* Leaflet 1.9.4 - 로컬 내장 */
 /* required styles */
@@ -3979,7 +3979,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
         observation.note || ""
       ]));
     });
-    const csv = "\\uFEFF" + rows.map(row=>row.map(csvCell).join(",")).join("\\r\\n");
+    const csv = "\uFEFFsep=,\r\n" + rows.map(row=>row.map(csvCell).join(",")).join("\r\n");
     downloadTextFile(`학교숲_조사기록_${new Date().toISOString().slice(0,10)}.csv`,csv,"text/csv;charset=utf-8");
   }
 
