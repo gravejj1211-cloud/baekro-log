@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.delete-my-surveys]
 verify_jwt = false
+
+[functions.get-data-usage]
+verify_jwt = false

@@ -849,6 +849,14 @@ svg.leaflet-image-layer.leaflet-interactive path {
     .data-usage-item span{display:block;margin-top:4px;color:var(--muted);font-size:11px;font-weight:800}
     .data-plan-note{display:flex;flex-direction:column;gap:3px;margin-top:14px;padding:11px 12px;border:1px solid #d7e7dc;border-radius:12px;background:#f0f8f3;color:var(--primary-2);font-size:12px}
     .data-plan-note span,.data-plan-note small{color:var(--muted);font-size:11px}
+    .data-capacity-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:10px}
+    .data-capacity-item{padding:11px 12px;border:1px solid var(--line);border-radius:12px;background:#fff}
+    .data-capacity-head{display:flex;justify-content:space-between;gap:8px;align-items:baseline;font-size:12px}
+    .data-capacity-head span{color:var(--primary-2);font-size:11px;font-weight:900;white-space:nowrap}
+    .data-capacity-meter{height:8px;margin:9px 0 6px;border-radius:99px;background:#e8eeea;overflow:hidden}
+    .data-capacity-meter i{display:block;width:0;height:100%;border-radius:inherit;background:var(--primary);transition:width .25s ease,background .25s ease}
+    .data-capacity-meter i.warn{background:#c88719}.data-capacity-meter i.danger{background:#c64235}
+    .data-capacity-item small{color:var(--muted);font-size:10px}
     .data-action-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:14px}
     .data-danger-card{border-color:#edc9c5}
     .data-danger-card .btn{width:100%}
@@ -856,6 +864,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
       .teacher-menu{grid-template-columns:repeat(3,1fr);gap:5px}
       .teacher-menu-btn{padding:9px 4px;font-size:10px}
       .data-usage-grid{grid-template-columns:repeat(2,1fr)}
+      .data-capacity-grid{grid-template-columns:1fr}
       .data-action-grid{grid-template-columns:1fr}
       .teacher-filter-row{grid-template-columns:1fr 1fr}
     }
@@ -1571,6 +1580,18 @@ svg.leaflet-image-layer.leaflet-interactive path {
             <strong>무료 요금제 기준</strong>
             <span>데이터베이스 500MB · 파일 저장소 1GB · 월 전송량 5GB</span>
             <small>정확한 프로젝트 전체 사용량은 Supabase 대시보드에서 확인하세요.</small>
+          </div>
+          <div class="data-capacity-grid">
+            <div class="data-capacity-item">
+              <div class="data-capacity-head"><strong>데이터베이스</strong><span id="teacherDatabaseUsageLabel">계산 중</span></div>
+              <div class="data-capacity-meter"><i id="teacherDatabaseUsageMeter"></i></div>
+              <small id="teacherDatabaseUsageNote">500MB 기준</small>
+            </div>
+            <div class="data-capacity-item">
+              <div class="data-capacity-head"><strong>사진 저장소</strong><span id="teacherStorageUsageLabel">계산 중</span></div>
+              <div class="data-capacity-meter"><i id="teacherStorageUsageMeter"></i></div>
+              <small id="teacherStorageUsageNote">1GB 기준</small>
+            </div>
           </div>
           <div class="data-action-grid no-print">
             <button class="btn primary" id="downloadTeacherJsonBtn" type="button">JSON 원본 백업</button>
@@ -5012,6 +5033,48 @@ svg.leaflet-image-layer.leaflet-interactive path {
     setTeacherTab("students");
   }
 
+  function formatDataBytes(bytes){
+    const value = Number(bytes || 0);
+    if(!Number.isFinite(value) || value < 0) return "확인 불가";
+    if(value < 1024) return `${value}B`;
+    if(value < 1024 * 1024) return `${(value / 1024).toFixed(1)}KB`;
+    if(value < 1024 * 1024 * 1024) return `${(value / (1024 * 1024)).toFixed(1)}MB`;
+    return `${(value / (1024 * 1024 * 1024)).toFixed(2)}GB`;
+  }
+
+  function updateDataCapacity(prefix,usageBytes,limitBytes){
+    const label = $(`${prefix}UsageLabel`);
+    const meter = $(`${prefix}UsageMeter`);
+    const note = $(`${prefix}UsageNote`);
+    if(!label || !meter || !note) return;
+    if(!Number.isFinite(Number(usageBytes))){
+      label.textContent = "확인 불가";
+      meter.style.width = "0%";
+      note.textContent = "Supabase 대시보드에서 확인하세요.";
+      return;
+    }
+    const percent = Math.min(100,Math.max(0,(Number(usageBytes) / Number(limitBytes)) * 100));
+    label.textContent = `${formatDataBytes(usageBytes)} / ${formatDataBytes(limitBytes)}`;
+    meter.style.width = `${percent}%`;
+    meter.classList.toggle("warn",percent >= 70 && percent < 85);
+    meter.classList.toggle("danger",percent >= 85);
+    note.textContent = `${percent.toFixed(1)}% 사용 · ${percent >= 85 ? "정리 필요" : percent >= 70 ? "사용량 증가" : "정상"}`;
+  }
+
+  async function loadTeacherDataUsage(){
+    if(currentUser?.role !== "owner_teacher" || !supabaseClient) return;
+    updateDataCapacity("teacherDatabase",NaN,500 * 1024 * 1024);
+    updateDataCapacity("teacherStorage",NaN,1024 * 1024 * 1024);
+    const {data,error} = await supabaseClient.functions.invoke("get-data-usage");
+    if(error || !data){
+      $("teacherDatabaseUsageNote").textContent = "사용량을 불러오지 못했습니다.";
+      $("teacherStorageUsageNote").textContent = "Supabase 대시보드에서 확인하세요.";
+      return;
+    }
+    updateDataCapacity("teacherDatabase",data.database?.usageBytes == null ? NaN : Number(data.database.usageBytes),Number(data.database?.limitBytes));
+    updateDataCapacity("teacherStorage",data.storage?.usageBytes == null ? NaN : Number(data.storage.usageBytes),Number(data.storage?.limitBytes));
+  }
+
   function renderTeacherDataPanel(){
     const surveys = Array.isArray(teacherHistoryCache) ? teacherHistoryCache : [];
     const observations = surveys.flatMap(survey=>survey.observations || []);
@@ -5023,6 +5086,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
     $("teacherDataBackupStatus").textContent = surveys.length
       ? `현재 ${surveys.length}건의 조사 기록과 ${photoCount}장의 사진 경로를 백업할 수 있습니다. 사진 원본은 JSON에 포함되지 않습니다.`
       : "백업할 조사 기록이 없습니다.";
+    loadTeacherDataUsage();
   }
 
   function downloadTeacherJsonBackup(){
