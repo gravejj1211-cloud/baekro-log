@@ -4568,7 +4568,14 @@ svg.leaflet-image-layer.leaflet-interactive path {
         h1{margin:0 0 3mm;font-size:22pt;color:#176b4d}h2{margin:0;font-size:13pt}.report-sub{color:#64746b;margin-bottom:7mm}
         .summary{display:grid;grid-template-columns:repeat(3,1fr);gap:3mm;margin-bottom:7mm}.summary div{padding:4mm;border:1px solid #d7e0da;border-radius:4mm;background:#f4f7f5}.summary strong{display:block;font-size:16pt;color:#0e5139}.summary span{font-size:9pt;color:#64746b}
         .export-survey{break-inside:avoid;border:1px solid #d7e0da;border-radius:4mm;padding:4mm;margin-bottom:5mm}.export-survey-head{display:flex;justify-content:space-between;gap:5mm;align-items:baseline}.export-survey-head span,.export-meta{color:#64746b;font-size:9pt}.export-meta{padding:2mm 0 3mm;border-bottom:1px solid #e7eee9;margin-bottom:2mm}.export-observation{display:flex;justify-content:space-between;gap:5mm;border-bottom:1px solid #edf2ee;padding:2.5mm 0;break-inside:avoid}.export-observation-main{display:flex;flex-direction:column;gap:1mm;min-width:0}.export-observation-main strong{font-size:11pt}.export-observation-main span{color:#64746b;font-size:9pt}.export-photo{width:28mm;height:28mm;object-fit:cover;border-radius:2mm}.export-empty{color:#64746b;font-size:9pt;padding:2mm 0}.print-btn{margin:0 0 5mm;padding:2.5mm 5mm;border:0;border-radius:2mm;background:#176b4d;color:white;font-weight:bold}
-        @media print{.print-btn{display:none}}
+        body{width:100%;max-width:178mm;margin:0 auto;background:#fff}
+        @media screen{body{padding:10mm 0;background:#f4f7f5}}
+        .summary{gap:2mm;margin-bottom:6mm}.summary div{padding:3mm;border-radius:2mm}
+        .export-group-title{break-after:avoid;page-break-after:avoid}
+        .export-survey{border:0;border-top:1px solid #b9c8bf;border-radius:0;padding:4mm 0;margin-bottom:4mm}
+        .export-observation{display:grid;grid-template-columns:minmax(0,1fr) 30mm;align-items:start;gap:5mm}
+        .export-photo{width:30mm;height:30mm}
+        @media print{body{max-width:none;margin:0;padding:0}.print-btn{display:none}}
       </style></head><body><button class="print-btn" onclick="window.print()">인쇄 또는 PDF로 저장</button>
       <h1>학교숲 시민과학자 조사 보고서</h1><div class="report-sub">${escapeHtml(filters)} · 생성일 ${new Date().toLocaleString("ko-KR")}</div>
       <div class="summary"><div><strong>${records.length}</strong><span>조사 기록</span></div><div><strong>${totalObservations}</strong><span>관찰 기록</span></div><div><strong>${totalIndividuals}</strong><span>총 개체 수</span></div></div>
@@ -4689,7 +4696,14 @@ svg.leaflet-image-layer.leaflet-interactive path {
         h1{margin:0 0 3mm;font-size:22pt;color:#176b4d}h2{margin:0;font-size:13pt}.report-sub{color:#64746b;margin-bottom:7mm}.export-group-title{margin:8mm 0 3mm;padding:2mm 3mm;border-left:4px solid #176b4d;background:#f0f6f2;color:#176b4d}
         .summary{display:grid;grid-template-columns:repeat(3,1fr);gap:3mm;margin-bottom:7mm}.summary div{padding:4mm;border:1px solid #d7e0da;border-radius:4mm;background:#f4f7f5}.summary strong{display:block;font-size:16pt;color:#0e5139}.summary span{font-size:9pt;color:#64746b}
         .export-survey{break-inside:avoid;border:1px solid #d7e0da;border-radius:4mm;padding:4mm;margin-bottom:5mm}.export-survey-head{display:flex;justify-content:space-between;gap:5mm;align-items:baseline}.export-survey-head span,.export-meta{color:#64746b;font-size:9pt}.export-meta{padding:2mm 0 3mm;border-bottom:1px solid #e7eee9;margin-bottom:2mm}.export-observation{display:flex;justify-content:space-between;gap:5mm;border-bottom:1px solid #edf2ee;padding:2.5mm 0;break-inside:avoid}.export-observation-main{display:flex;flex-direction:column;gap:1mm;min-width:0}.export-observation-main strong{font-size:11pt}.export-observation-main span{color:#64746b;font-size:9pt}.export-photo{width:28mm;height:28mm;object-fit:cover;border-radius:2mm}.export-empty{color:#64746b;font-size:9pt;padding:2mm 0}.print-btn{margin:0 0 5mm;padding:2.5mm 5mm;border:0;border-radius:2mm;background:#176b4d;color:white;font-weight:bold}
-        @media print{.print-btn{display:none}}
+        body{width:100%;max-width:178mm;margin:0 auto;background:#fff}
+        @media screen{body{padding:10mm 0;background:#f4f7f5}}
+        .summary{gap:2mm;margin-bottom:6mm}.summary div{padding:3mm;border-radius:2mm}
+        .export-group-title{break-after:avoid;page-break-after:avoid}
+        .export-survey{border:0;border-top:1px solid #b9c8bf;border-radius:0;padding:4mm 0;margin-bottom:4mm}
+        .export-observation{display:grid;grid-template-columns:minmax(0,1fr) 30mm;align-items:start;gap:5mm}
+        .export-photo{width:30mm;height:30mm}
+        @media print{body{max-width:none;margin:0;padding:0}.print-btn{display:none}}
       </style></head><body><button class="print-btn" onclick="window.print()">인쇄 또는 PDF로 저장</button>
       <h1>학교숲 시민과학자 조사 보고서</h1><div class="report-sub">${escapeHtml(filters)} · 생성일 ${new Date().toLocaleString("ko-KR")}</div>
       <div class="summary"><div><strong>${records.length}</strong><span>조사 기록</span></div><div><strong>${totalObservations}</strong><span>관찰 기록</span></div><div><strong>${totalIndividuals}</strong><span>총 개체 수</span></div></div>
