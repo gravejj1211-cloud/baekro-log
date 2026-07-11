@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.set-member-password]
 verify_jwt = false
+
+[functions.delete-my-surveys]
+verify_jwt = false

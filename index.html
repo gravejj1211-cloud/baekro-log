@@ -4035,7 +4035,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
   }
 
   function isHistoryDeletable(survey){
-    return Boolean(survey) && !isSubmittedSurvey(survey);
+    return Boolean(survey);
   }
 
   function updateHistoryToolbar(history=[]){
@@ -4134,7 +4134,17 @@ svg.leaflet-image-layer.leaflet-interactive path {
     const history = loadJson(STORAGE.history,[]);
     const targets = [...new Set(indices)].filter(idx=>isHistoryDeletable(history[idx]));
     if(!targets.length) return;
-    if(!confirm(`${targets.length}건의 조사 기록을 삭제할까요? 사진도 함께 삭제됩니다.`)) return;
+    if(!confirm(`${targets.length}건의 조사 기록을 삭제할까요? 제출된 기록도 삭제되며 사진도 함께 삭제됩니다.`)) return;
+    const targetSurveys = targets.map(idx=>history[idx]).filter(Boolean);
+    if(supabaseClient && currentUser?.authId){
+      const {error:remoteError} = await supabaseClient.functions.invoke("delete-my-surveys",{
+        body:{survey_ids:targetSurveys.map(survey=>survey.id)}
+      });
+      if(remoteError){
+        alert(`Supabase 조사 기록 삭제에 실패했습니다. ${remoteError.message}`);
+        return;
+      }
+    }
     for(const idx of targets.sort((a,b)=>b-a)){
       const removed = history.splice(idx,1)[0];
       for(const observation of (removed?.observations || [])){
