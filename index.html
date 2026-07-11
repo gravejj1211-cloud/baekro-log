@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#176b4d" />
-  <title>학교숲 시민과학자 v16</title>
+  <title>학교숲 시민과학자 v18</title>
 <style>
 /* Leaflet 1.9.4 - 로컬 내장 */
 /* required styles */
@@ -992,13 +992,6 @@ svg.leaflet-image-layer.leaflet-interactive path {
       padding:18px;text-align:center;color:var(--muted);
       font-size:12px;font-weight:800;background:#eef3f0
     }
-    .obs-map-link{
-      display:flex;align-items:center;justify-content:center;
-      min-height:42px;border-top:1px solid var(--line);
-      color:var(--primary);font-size:12px;font-weight:800;
-      text-decoration:none;background:#fbfdfc
-    }
-    .obs-map-link:active{background:var(--soft)}
     .photo-status{margin-top:7px;min-height:18px}
     .print-only{display:none}
     @media (max-width:520px){
@@ -1033,7 +1026,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
       <div class="logo">鳥</div>
       <div>
         <h1>학교숲 시민과학자</h1>
-        <div class="sub">모바일 생태 조사 기록 · v16</div>
+        <div class="sub">모바일 생태 조사 기록 · v18</div>
       </div>
     </div>
     <button class="icon-btn" id="settingsBtn" aria-label="설정">⚙️</button>
@@ -1200,12 +1193,6 @@ svg.leaflet-image-layer.leaflet-interactive path {
         <h2>저장된 조사 기록</h2>
         <div id="historyList"><div class="muted">저장된 기록이 없습니다.</div></div>
       </div>
-      <div class="card no-print">
-        <div class="btn-row">
-          <button class="btn secondary" id="exportCsvBtn">CSV 내보내기</button>
-          <button class="btn ghost" id="exportJsonBtn">JSON 백업</button>
-        </div>
-      </div>
     </section>
   </main>
 
@@ -1284,7 +1271,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
       <label>백로 사진</label>
       <div class="photo-box">
         <input id="photoInput" type="file" accept="image/*" capture="environment" />
-        <div id="photoStatus" class="tiny photo-status">사진 촬영 또는 갤러리에서 선택할 수 있습니다.</div>
+        <div id="photoStatus" class="tiny photo-status"></div>
         <div id="photoPreviewWrap" class="photo-preview-wrap hidden">
           <img id="photoPreview" class="photo-preview" alt="선택한 백로 사진 미리보기" />
           <button type="button" id="removePhotoBtn" class="photo-remove" aria-label="사진 제거">✕</button>
@@ -1617,7 +1604,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
     $("photoInput").value = "";
     $("photoPreviewWrap").classList.add("hidden");
     $("photoPreview").removeAttribute("src");
-    $("photoStatus").textContent = "사진 촬영 또는 갤러리에서 선택할 수 있습니다.";
+    $("photoStatus").textContent = "";
     if(pendingPhotoObjectUrl){
       URL.revokeObjectURL(pendingPhotoObjectUrl);
       pendingPhotoObjectUrl = null;
@@ -2170,11 +2157,6 @@ svg.leaflet-image-layer.leaflet-interactive path {
       : `${Math.round(currentSurvey.distance)}m`;
   }
 
-  function osmViewUrl(lat,lon){
-    const latitude = Number(lat).toFixed(6);
-    const longitude = Number(lon).toFixed(6);
-    return `https://www.openstreetmap.org/?mlat=${latitude}&mlon=${longitude}#map=18/${latitude}/${longitude}`;
-  }
 
   function canvasToBlob(canvas,type="image/jpeg",quality=.86){
     return new Promise((resolve,reject)=>{
@@ -2419,10 +2401,6 @@ svg.leaflet-image-layer.leaflet-interactive path {
               지도 이미지 불러오는 중…
             </div>
           </div>
-          <a class="obs-map-link" href="${escapeHtml(osmViewUrl(o.lat,o.lon))}"
-             target="_blank" rel="noopener noreferrer">
-            큰 지도에서 위치 보기
-          </a>
         </div>
         ${isDraftSurvey(currentSurvey) ? `
           <div class="btn-row no-print" style="margin-top:10px">
@@ -2483,7 +2461,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
       }catch(e){
         console.warn("관찰 지도 이미지 처리 실패",e);
         if(status){
-          status.textContent = "지도 이미지를 만들지 못했습니다. 큰 지도에서 위치를 확인하세요.";
+          status.textContent = "관찰 위치 지도 이미지를 만들지 못했습니다.";
         }
       }
     }
@@ -3297,56 +3275,6 @@ svg.leaflet-image-layer.leaflet-interactive path {
     renderHistory();
   };
 
-  function exportCsv(){
-    const history = loadJson(STORAGE.history,[]);
-    if(!history.length){alert("내보낼 기록이 없습니다.");return}
-    const rows = [[
-      "조사일자","참여자","조사구간","시작시간","종료시간","제출상태","제출시각","조사소감","날씨","종명","개체수",
-      "출현지역·서식특성","발견시각","최종위도","최종경도","GPS정확도(m)","위치입력방식",
-      "원본GPS위도","원본GPS경도","원본GPS정확도(m)","위치메모","사진여부","사진ID"
-    ]];
-    history.forEach(s=>{
-      (s.observations||[]).forEach(o=>{
-        rows.push([
-          s.date,s.participant,s.zone?.name||"",
-          formatTime(s.startTime,true),formatTime(s.endTime,true),
-          isSubmittedSurvey(s) ? "최종 제출" : (s.status || ""),
-          s.submittedAt ? formatTime(s.submittedAt,true) : "",
-          s.reflection || "",weatherText(s.weather),
-          o.species,o.count,[...(o.tags||[]),o.habitat||""].filter(Boolean).join(" / "),
-          formatTime(o.time,true),o.lat,o.lon,o.accuracy,locationMethodLabel(o.locationMethod || "gps"),
-          o.deviceLat ?? o.lat,o.deviceLon ?? o.lon,o.deviceAccuracy ?? o.accuracy,o.locationNote || "",
-          o.photoId ? "있음" : "없음",o.photoId || ""
-        ]);
-      });
-    });
-    const csv = rows.map(r=>r.map(csvEscape).join(",")).join("\r\n");
-    downloadBlob("\uFEFF"+csv,`학교숲_시민과학자_${new Date().toISOString().slice(0,10)}.csv`,"text/csv;charset=utf-8");
-  }
-
-  function exportJson(){
-    const data = {
-      exportedAt:new Date().toISOString(),
-      notice:"사진 원본은 브라우저 IndexedDB에 저장되며 이 JSON에는 사진 식별자만 포함됩니다.",
-      settings,
-      surveys:loadJson(STORAGE.history,[])
-    };
-    downloadBlob(JSON.stringify(data,null,2),`학교숲_시민과학자_백업_${new Date().toISOString().slice(0,10)}.json`,"application/json");
-  }
-
-  function csvEscape(v){
-    const s = String(v ?? "");
-    return `"${s.replace(/"/g,'""')}"`;
-  }
-
-  function downloadBlob(content,name,type){
-    const blob = new Blob([content],{type});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href=url;a.download=name;a.click();
-    setTimeout(()=>URL.revokeObjectURL(url),1000);
-  }
-
   function showView(view){
     $("homeView").classList.toggle("hidden",view!=="home");
     $("surveyView").classList.toggle("hidden",view!=="survey");
@@ -3451,8 +3379,6 @@ svg.leaflet-image-layer.leaflet-interactive path {
   $("continueSurveyBtn").addEventListener("click",closeFinishModal);
   $("surveyReflection").addEventListener("input",saveReflectionDraft);
   $("confirmFinishBtn").addEventListener("click",finishSurvey);
-  $("exportCsvBtn").addEventListener("click",exportCsv);
-  $("exportJsonBtn").addEventListener("click",exportJson);
   $("countMinus").addEventListener("click",()=>{
     $("individualCount").value = Math.max(1,Number($("individualCount").value||1)-1);
   });
