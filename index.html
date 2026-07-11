@@ -888,15 +888,28 @@ svg.leaflet-image-layer.leaflet-interactive path {
       padding:8px 10px;border-bottom:1px solid var(--line);
       font-size:12px;font-weight:800;color:var(--muted)
     }
+    .obs-mini-map-wrap{position:relative}
     .obs-mini-map{
-      position:relative;isolation:isolate;z-index:0;overflow:hidden;
+      position:relative;isolation:isolate;overflow:hidden;
       width:100%;height:210px;background:#e9efeb;touch-action:none
     }
-    .obs-mini-map .leaflet-pane,
-    .obs-mini-map .leaflet-control-container{z-index:auto}
+    .obs-mini-map .leaflet-map-pane{z-index:1}
+    .obs-mini-map .leaflet-tile-pane{z-index:200}
+    .obs-mini-map .leaflet-overlay-pane{z-index:400}
+    .obs-mini-map .leaflet-shadow-pane{z-index:500}
+    .obs-mini-map .leaflet-marker-pane{z-index:600}
+    .obs-mini-map .leaflet-tooltip-pane{z-index:650}
+    .obs-mini-map .leaflet-popup-pane{z-index:700}
+    .obs-mini-map .leaflet-control-container{position:relative;z-index:800}
     .obs-mini-map .leaflet-control-attribution{
       font-size:8px!important;line-height:1.1!important
     }
+    .obs-map-loading{
+      position:absolute;inset:0;z-index:850;display:grid;place-items:center;
+      padding:18px;text-align:center;background:rgba(246,249,247,.92);
+      color:var(--muted);font-size:12px;font-weight:800;pointer-events:none
+    }
+    .obs-map-loading.error{color:var(--bad);background:rgba(255,240,238,.94)}
     .photo-status{margin-top:7px;min-height:18px}
     .print-only{display:none}
     @media (max-width:520px){
@@ -931,7 +944,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
       <div class="logo">鳥</div>
       <div>
         <h1>학교숲 시민과학자</h1>
-        <div class="sub">모바일 생태 조사 기록 · v8</div>
+        <div class="sub">모바일 생태 조사 기록 · v9</div>
       </div>
     </div>
     <button class="icon-btn" id="settingsBtn" aria-label="설정">⚙️</button>
@@ -1947,8 +1960,11 @@ svg.leaflet-image-layer.leaflet-interactive path {
             관찰 위치 · ${Number(o.lat).toFixed(6)}, ${Number(o.lon).toFixed(6)}
             · 정확도 ±${Math.round(Number(o.accuracy || 0))}m
           </div>
-          <div id="obsMap-${idx}" class="obs-mini-map" data-observation-index="${idx}"
-            aria-label="${escapeHtml(o.species)} 관찰 위치 지도"></div>
+          <div class="obs-mini-map-wrap">
+            <div id="obsMap-${idx}" class="obs-mini-map" data-observation-index="${idx}"
+              aria-label="${escapeHtml(o.species)} 관찰 위치 지도"></div>
+            <div id="obsMapStatus-${idx}" class="obs-map-loading">지도 불러오는 중…</div>
+          </div>
         </div>
         <div class="btn-row no-print" style="margin-top:10px">
           <button class="btn ghost" onclick="window.__deleteObservation(${idx})">삭제</button>
@@ -1992,13 +2008,30 @@ svg.leaflet-image-layer.leaflet-interactive path {
           preferCanvas:true
         }).setView(point,zoom);
 
-        L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{
+        const statusEl = $(`obsMapStatus-${idx}`);
+        let tileErrorCount = 0;
+        const tileLayer = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{
           maxZoom:19,
           minZoom:3,
-          keepBuffer:1,
-          crossOrigin:true,
+          keepBuffer:2,
+          updateWhenIdle:false,
           attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        }).addTo(miniMap);
+        })
+        .on("load",()=>{
+          if(statusEl) statusEl.classList.add("hidden");
+          requestAnimationFrame(()=>{
+            miniMap.invalidateSize({pan:false});
+            miniMap.setView(point,zoom,{animate:false});
+          });
+        })
+        .on("tileerror",()=>{
+          tileErrorCount += 1;
+          if(tileErrorCount >= 3 && statusEl){
+            statusEl.textContent = "지도 배경을 불러오지 못했습니다. 인터넷 연결 후 다시 열어 주세요.";
+            statusEl.classList.add("error");
+          }
+        })
+        .addTo(miniMap);
 
         // 관찰 기록 지도에는 이동 경로를 넣지 않고, 해당 관찰 지점만 표시합니다.
         L.circle(point,{
@@ -2013,10 +2046,14 @@ svg.leaflet-image-layer.leaflet-interactive path {
           interactive:false
         }).addTo(miniMap);
 
-        setTimeout(()=>{
+        const refreshMiniMap = ()=>{
           miniMap.invalidateSize({pan:false});
           miniMap.setView(point,zoom,{animate:false});
-        },120);
+          tileLayer.redraw();
+        };
+        requestAnimationFrame(refreshMiniMap);
+        setTimeout(refreshMiniMap,150);
+        setTimeout(refreshMiniMap,600);
         observationMiniMaps.push(miniMap);
       });
     });
