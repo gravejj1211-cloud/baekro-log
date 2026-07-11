@@ -1180,7 +1180,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
     </div>
     <div class="header-tools">
       <button class="user-chip hidden" id="userMenuBtn" type="button" aria-label="사용자 메뉴">
-        <span id="teacher-name" class="teacher-name">숲선생님 박은경</span>
+        <span id="teacher-name" class="teacher-name">박은경</span>
         <span class="user-menu-caret" aria-hidden="true"></span>
       </button>
       <button class="role-switch-btn hidden" id="roleSwitchBtn" type="button"></button>
@@ -4783,7 +4783,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
     $("userMenu").classList.add("hidden");
     $("userMenuBtn").classList.remove("open");
     $("teacher-name").textContent = isOwner
-      ? "숲선생님 박은경"
+      ? "박은경"
       : currentUser?.role === "collaborating_teacher"
         ? `${currentUser.name} · 협력 교사`
         : currentUser?.name || "";
