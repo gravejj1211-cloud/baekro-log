@@ -4492,7 +4492,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
       alert("이름, 희망 아이디, 이메일, 비밀번호를 모두 입력하세요.");
       return;
     }
-    if(!/^\\S+@\\S+\\.\\S+$/.test(email)){
+    if(!/^\S+@\S+\.\S+$/.test(email)){
       alert("올바른 이메일 주소를 입력하세요.");
       return;
     }
