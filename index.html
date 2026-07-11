@@ -712,7 +712,12 @@ svg.leaflet-image-layer.leaflet-interactive path {
     .header-tools{display:flex;align-items:center;gap:8px;min-width:0}
     .user-chip{display:flex;align-items:center;gap:4px;border:0;background:transparent;padding:6px 4px;color:var(--text);min-width:0}
     .teacher-name{font-size:11px;font-weight:900;color:#2f6b4f;white-space:nowrap}
-    .user-menu-caret{font-size:12px;color:var(--muted);line-height:1}
+    .user-menu-caret{
+      width:8px;height:8px;display:inline-block;flex:0 0 8px;
+      border-right:2px solid currentColor;border-bottom:2px solid currentColor;
+      color:var(--muted);transform:rotate(45deg) translateY(-2px);
+      transform-origin:center
+    }
     .user-menu{position:fixed;right:16px;top:68px;z-index:80;min-width:154px;padding:8px;border:1px solid var(--line);border-radius:14px;background:white;box-shadow:0 10px 28px rgba(28,53,39,.16)}
     .user-menu-role{padding:7px 9px 9px;color:var(--muted);font-size:11px;border-bottom:1px solid var(--line)}
     .user-menu button{width:100%;margin-top:6px;border:0;border-radius:10px;padding:9px;background:#fff3f1;color:var(--bad);font-weight:900;font-size:12px}
@@ -785,6 +790,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
     .teacher-dashboard-head .sub{color:rgba(255,255,255,.82)}
     .teacher-dashboard-head .btn.ghost{background:rgba(255,255,255,.92)}
     .teacher-dashboard-head .btn.secondary{background:rgba(255,255,255,.16);color:white;border:1px solid rgba(255,255,255,.28)}
+    .teacher-dashboard-head .btn-row .btn{flex:0 0 auto;min-width:0}
     .teacher-history-list{display:flex;flex-direction:column;gap:10px}
     .teacher-history-item{border:1px solid var(--line);border-radius:14px;padding:12px;background:#fbfcfb}
     .teacher-history-title{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;font-weight:900}
@@ -808,6 +814,8 @@ svg.leaflet-image-layer.leaflet-interactive path {
     .teacher-filter-summary{min-width:0;color:var(--muted);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .teacher-filter-summary strong{color:var(--primary-2)}
     .teacher-filter-toolbar .btn{flex:0 0 auto;padding:8px 12px;font-size:12px}
+    .teacher-export-toolbar{display:flex;gap:8px;margin-top:10px}
+    .teacher-export-toolbar .btn{flex:1;min-width:0;padding:9px 10px;font-size:12px}
     .teacher-summary-line{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:2px 0}
     .teacher-summary-item{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-width:0;text-align:center}
     .teacher-summary-item span{color:var(--muted);font-size:11px;font-weight:800;white-space:nowrap}
@@ -1131,7 +1139,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
     <div class="header-tools">
       <button class="user-chip hidden" id="userMenuBtn" type="button" aria-label="사용자 메뉴">
         <span id="teacher-name" class="teacher-name">숲선생님 박은경</span>
-        <span class="user-menu-caret">⌄</span>
+        <span class="user-menu-caret" aria-hidden="true"></span>
       </button>
       <button class="icon-btn" id="settingsBtn" aria-label="설정">⚙️</button>
     </div>
@@ -1371,13 +1379,12 @@ svg.leaflet-image-layer.leaflet-interactive path {
         <div class="sub" id="teacherDashboardSubtitle">조사 구간과 학생 조사 기록을 확인합니다.</div>
         <div class="btn-row" style="margin-top:14px">
           <button class="btn ghost" id="teacherBackHomeBtn">학생 화면</button>
-          <button class="btn secondary" id="openTeacherSettingsBtn">조사 구간 설정</button>
         </div>
       </div>
 
       <div class="teacher-menu no-print">
         <button class="teacher-menu-btn active" data-teacher-tab="overview">전체 현황</button>
-        <button class="teacher-menu-btn" data-teacher-tab="students">학생 관리</button>
+        <button class="teacher-menu-btn" data-teacher-tab="students">회원 관리</button>
       </div>
 
       <div id="teacherOverviewPanel">
@@ -1392,6 +1399,10 @@ svg.leaflet-image-layer.leaflet-interactive path {
           <div class="teacher-filter-toolbar">
             <div id="teacherFilterSummary" class="teacher-filter-summary">전체 조건</div>
             <button class="btn ghost" id="openTeacherFilterBtn" type="button">필터</button>
+          </div>
+          <div class="teacher-export-toolbar no-print">
+            <button class="btn secondary" id="exportTeacherPdfBtn" type="button">PDF 보고서</button>
+            <button class="btn ghost" id="exportTeacherExcelBtn" type="button">엑셀 데이터</button>
           </div>
           <div id="teacherFilterNote" class="teacher-filter-note">전체 조사 기록을 표시합니다.</div>
         </div>
@@ -1408,7 +1419,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
       <div id="teacherStudentsPanel" class="hidden">
         <div class="card">
           <div class="section-head-row">
-            <h2>학생 관리</h2>
+            <h2>회원 관리</h2>
             <div class="teacher-student-actions" style="margin-top:0">
               <button class="btn primary" id="addStudentBtn">＋ 학생 추가</button>
               <button class="btn secondary" id="addTeacherBtn">＋ 협력 교사</button>
@@ -1670,6 +1681,9 @@ svg.leaflet-image-layer.leaflet-interactive path {
     <div class="teacher-filter-row">
       <select id="teacherFilterStudent" aria-label="학생별 필터">
         <option value="">전체 학생</option>
+      </select>
+      <select id="teacherFilterGroup" aria-label="반별 필터">
+        <option value="">전체 반</option>
       </select>
       <select id="teacherFilterSpecies" aria-label="종별 필터">
         <option value="">전체 종</option>
@@ -3639,8 +3653,19 @@ svg.leaflet-image-layer.leaflet-interactive path {
   }
 
   function renderTeacherFilterOptions(history){
+    const registeredGroups = teacherStudents
+      .map(student=>String(student.group || "").trim())
+      .filter(Boolean);
+    const groupByStudent = new Map(teacherStudents.map(student=>[
+      String(student.name || "").trim(),
+      String(student.group || "").trim()
+    ]));
     const values = {
       teacherFilterStudent: Array.from(new Set(history.map(s=>String(s.participant || "").trim()).filter(Boolean))).sort(),
+      teacherFilterGroup: Array.from(new Set([
+        ...registeredGroups,
+        ...history.map(s=>groupByStudent.get(String(s.participant || "").trim()) || "")
+      ].filter(Boolean))).sort(),
       teacherFilterSpecies: Array.from(new Set(history.flatMap(s=>(s.observations || []).map(o=>String(o.species || "").trim()).filter(Boolean)))).sort(),
       teacherFilterZone: Array.from(new Set(history.map(s=>String(s.zone?.name || "").trim()).filter(Boolean))).sort()
     };
@@ -3655,13 +3680,19 @@ svg.leaflet-image-layer.leaflet-interactive path {
 
   function getTeacherFilteredHistory(history){
     const student = $("teacherFilterStudent").value;
+    const group = $("teacherFilterGroup").value;
     const species = $("teacherFilterSpecies").value;
     const zone = $("teacherFilterZone").value;
     const status = $("teacherFilterStatus").value;
+    const groupByStudent = new Map(teacherStudents.map(item=>[
+      String(item.name || "").trim(),
+      String(item.group || "").trim()
+    ]));
     return history.map((survey,index)=>({survey,index})).filter(({survey})=>{
       const speciesMatch = !species || (survey.observations || []).some(o=>String(o.species || "").trim() === species);
       const statusMatch = !status || (status === "submitted" ? isSubmittedSurvey(survey) : isDraftSurvey(survey));
       return (!student || String(survey.participant || "").trim() === student) &&
+        (!group || groupByStudent.get(String(survey.participant || "").trim()) === group) &&
         speciesMatch &&
         (!zone || String(survey.zone?.name || "").trim() === zone) &&
         statusMatch;
@@ -3671,6 +3702,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
   function renderTeacherFilterSummary(){
     const labels = [
       ["teacherFilterStudent","학생"],
+      ["teacherFilterGroup","반"],
       ["teacherFilterSpecies","종"],
       ["teacherFilterZone","구간"],
       ["teacherFilterStatus","상태"]
@@ -3689,7 +3721,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
   }
 
   function resetTeacherFilter(){
-    ["teacherFilterStudent","teacherFilterSpecies","teacherFilterZone","teacherFilterStatus"]
+    ["teacherFilterStudent","teacherFilterGroup","teacherFilterSpecies","teacherFilterZone","teacherFilterStatus"]
       .forEach(id=>$(id).value="");
     renderTeacherDashboard();
     closeTeacherFilter();
@@ -3698,6 +3730,114 @@ svg.leaflet-image-layer.leaflet-interactive path {
   function applyTeacherFilter(){
     renderTeacherDashboard();
     closeTeacherFilter();
+  }
+
+  function getTeacherExportRecords(){
+    return getTeacherFilteredHistory(loadJson(STORAGE.history,[]));
+  }
+
+  function downloadTextFile(filename,content,mime="text/plain;charset=utf-8"){
+    const blob = new Blob([content],{type:mime});
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+  }
+
+  function csvCell(value){
+    const text = String(value ?? "").replace(/\r?\n/g," ");
+    return /[",]/.test(text) ? `"${text.replace(/"/g,'""')}"` : text;
+  }
+
+  function exportTeacherExcel(){
+    const records = getTeacherExportRecords();
+    const header = ["조사일","참여자","반","조사 구간","조사 시작","조사 종료","상태","종명","개체 수","관찰 시각","위도","경도","정확도(m)","사진 ID","메모"];
+    const groupByStudent = new Map(teacherStudents.map(item=>[
+      String(item.name || "").trim(),String(item.group || "").trim()
+    ]));
+    const rows = [header];
+    records.forEach(({survey})=>{
+      const observations = survey.observations || [];
+      const base = [
+        survey.date || "",
+        survey.participant || "",
+        groupByStudent.get(String(survey.participant || "").trim()) || "",
+        survey.zone?.name || "",
+        formatTime(survey.startTime,true),
+        formatTime(survey.endTime,true),
+        isSubmittedSurvey(survey) ? "최종 제출" : "조사 중"
+      ];
+      if(!observations.length){
+        rows.push([...base,"","","","","","","",""]);
+        return;
+      }
+      observations.forEach(observation=>rows.push([
+        ...base,
+        observation.species || "",
+        observation.count || "",
+        formatTime(observation.time,true),
+        observation.lat ?? "",
+        observation.lon ?? "",
+        observation.accuracy ?? "",
+        observation.photoId || "",
+        observation.note || ""
+      ]));
+    });
+    const csv = "\\uFEFF" + rows.map(row=>row.map(csvCell).join(",")).join("\\r\\n");
+    downloadTextFile(`학교숲_조사기록_${new Date().toISOString().slice(0,10)}.csv`,csv,"text/csv;charset=utf-8");
+  }
+
+  async function exportTeacherPdf(){
+    const reportWindow = window.open("","_blank");
+    if(!reportWindow){
+      alert("PDF 보고서 창을 열 수 없습니다. 브라우저의 팝업 차단을 해제해 주세요.");
+      return;
+    }
+    reportWindow.document.write("<p style='font-family:sans-serif;padding:24px'>보고서를 준비하고 있습니다…</p>");
+    const records = getTeacherExportRecords();
+    const totalObservations = records.reduce((sum,{survey})=>sum+(survey.observations || []).length,0);
+    const totalIndividuals = records.reduce((sum,{survey})=>sum+(survey.observations || []).reduce((n,o)=>n+      +Number(o.count || 0),0),0);
+    const filters = $("teacherFilterSummary").textContent || "전체 조건";
+    const surveyHtml = await Promise.all(records.map(async ({survey})=>{
+      const observations = await Promise.all((survey.observations || []).map(async observation=>{
+        const photoUrl = observation.photoId ? await getPhotoUrl(observation.photoId) : "";
+        return `<div class="export-observation">
+          <div class="export-observation-main">
+            <strong>${escapeHtml(observation.species || "종 미상")}</strong>
+            <span>${Number(observation.count || 0)}개체 · ${escapeHtml(formatTime(observation.time,true))}</span>
+            <span>${observation.lat != null && observation.lon != null
+              ? `${Number(observation.lat).toFixed(6)}, ${Number(observation.lon).toFixed(6)} · ±${Math.round(Number(observation.accuracy || 0))}m`
+              : "위치 정보 없음"}</span>
+            ${observation.note ? `<span>${escapeHtml(observation.note)}</span>` : ""}
+          </div>
+          ${photoUrl ? `<img src="${photoUrl}" alt="${escapeHtml(observation.species || "관찰 사진")}" class="export-photo">` : ""}
+        </div>`;
+      }));
+      return `<section class="export-survey">
+        <div class="export-survey-head"><h2>${escapeHtml(survey.participant || "이름 없음")} · ${escapeHtml(survey.zone?.name || "미지정")}</h2>
+          <span>${escapeHtml(survey.date || "")} · ${isSubmittedSurvey(survey) ? "최종 제출" : "조사 중"}</span></div>
+        <div class="export-meta">조사 시간 ${escapeHtml(formatTime(survey.startTime,true))} ~ ${escapeHtml(formatTime(survey.endTime,true))} · 관찰 ${observations.length}건</div>
+        ${observations.length ? observations.join("") : "<div class='export-empty'>관찰 기록 없음</div>"}
+      </section>`;
+    }));
+    reportWindow.document.open();
+    reportWindow.document.write(`<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>학교숲 조사 보고서</title>
+      <style>
+        @page{size:A4 portrait;margin:14mm}*{box-sizing:border-box}body{margin:0;color:#17211c;font-family:Arial,"Malgun Gothic",sans-serif;font-size:10pt;line-height:1.45}
+        h1{margin:0 0 3mm;font-size:22pt;color:#176b4d}h2{margin:0;font-size:13pt}.report-sub{color:#64746b;margin-bottom:7mm}
+        .summary{display:grid;grid-template-columns:repeat(3,1fr);gap:3mm;margin-bottom:7mm}.summary div{padding:4mm;border:1px solid #d7e0da;border-radius:4mm;background:#f4f7f5}.summary strong{display:block;font-size:16pt;color:#0e5139}.summary span{font-size:9pt;color:#64746b}
+        .export-survey{break-inside:avoid;border:1px solid #d7e0da;border-radius:4mm;padding:4mm;margin-bottom:5mm}.export-survey-head{display:flex;justify-content:space-between;gap:5mm;align-items:baseline}.export-survey-head span,.export-meta{color:#64746b;font-size:9pt}.export-meta{padding:2mm 0 3mm;border-bottom:1px solid #e7eee9;margin-bottom:2mm}.export-observation{display:flex;justify-content:space-between;gap:5mm;border-bottom:1px solid #edf2ee;padding:2.5mm 0;break-inside:avoid}.export-observation-main{display:flex;flex-direction:column;gap:1mm;min-width:0}.export-observation-main strong{font-size:11pt}.export-observation-main span{color:#64746b;font-size:9pt}.export-photo{width:28mm;height:28mm;object-fit:cover;border-radius:2mm}.export-empty{color:#64746b;font-size:9pt;padding:2mm 0}.print-btn{margin:0 0 5mm;padding:2.5mm 5mm;border:0;border-radius:2mm;background:#176b4d;color:white;font-weight:bold}
+        @media print{.print-btn{display:none}}
+      </style></head><body><button class="print-btn" onclick="window.print()">인쇄 또는 PDF로 저장</button>
+      <h1>학교숲 시민과학자 조사 보고서</h1><div class="report-sub">${escapeHtml(filters)} · 생성일 ${new Date().toLocaleString("ko-KR")}</div>
+      <div class="summary"><div><strong>${records.length}</strong><span>조사 기록</span></div><div><strong>${totalObservations}</strong><span>관찰 기록</span></div><div><strong>${totalIndividuals}</strong><span>총 개체 수</span></div></div>
+      ${surveyHtml.join("") || "<p>조건에 맞는 조사 기록이 없습니다.</p>"}</body></html>`);
+    reportWindow.document.close();
+    reportWindow.focus();
   }
 
   function renderTeacherStudents(history){
@@ -3872,7 +4012,6 @@ svg.leaflet-image-layer.leaflet-interactive path {
         : currentUser?.name || "";
     $("teacher-name").classList.toggle("hidden",!loggedIn);
     $("userMenuRole").textContent = isOwner ? "주 교사" : isStudent ? "학생" : "협력 교사";
-    $("openTeacherSettingsBtn").classList.toggle("hidden",!isOwner);
     document.querySelector('[data-teacher-tab="students"]')?.classList.toggle("hidden",!isOwner);
     const isCollaboratingTeacher = currentUser?.role === "collaborating_teacher";
     $("teacherDashboardTitle").textContent = isCollaboratingTeacher ? "협력 교사 화면" : "교사 대시보드";
@@ -3973,7 +4112,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
     $("surveyView").classList.toggle("hidden",view!=="survey");
     $("historyView").classList.toggle("hidden",view!=="history");
     $("teacherView").classList.toggle("hidden",view!=="teacher");
-    document.querySelector(".footer-nav")?.classList.toggle("hidden",view==="auth");
+    document.querySelector(".footer-nav")?.classList.toggle("hidden",view==="auth" || view==="teacher");
     document.querySelectorAll(".nav-btn").forEach(b=>b.classList.toggle("active",b.dataset.view===view));
     renderAuthSession();
     if(view === "auth") return;
@@ -4075,7 +4214,6 @@ svg.leaflet-image-layer.leaflet-interactive path {
   $("fitRouteBtn").addEventListener("click",fitAllRoutePoints);
   $("settingsBtn").addEventListener("click",openTeacherSettings);
   $("teacherBackHomeBtn").addEventListener("click",()=>showView("home"));
-  $("openTeacherSettingsBtn").addEventListener("click",openTeacherSettings);
   document.querySelectorAll("[data-teacher-tab]").forEach(btn=>
     btn.addEventListener("click",()=>setTeacherTab(btn.dataset.teacherTab))
   );
@@ -4083,6 +4221,8 @@ svg.leaflet-image-layer.leaflet-interactive path {
   $("closeTeacherFilterModal").addEventListener("click",closeTeacherFilter);
   $("resetTeacherFilterBtn").addEventListener("click",resetTeacherFilter);
   $("applyTeacherFilterBtn").addEventListener("click",applyTeacherFilter);
+  $("exportTeacherPdfBtn").addEventListener("click",exportTeacherPdf);
+  $("exportTeacherExcelBtn").addEventListener("click",exportTeacherExcel);
   $("addStudentBtn").addEventListener("click",()=>window.__openStudentEditor(""));
   $("closeStudentModal").addEventListener("click",()=>$("studentModal").classList.add("hidden"));
   $("addTeacherBtn").addEventListener("click",()=>window.__openStudentEditor("","collaborating_teacher"));
