@@ -2544,6 +2544,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
       };
       currentSurvey = {
         id: crypto.randomUUID ? crypto.randomUUID() : `survey-${Date.now()}`,
+        userId: currentUser.authId,
         participant,
         date: formatDate(new Date()),
         startTime: new Date().toISOString(),
@@ -4227,6 +4228,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
   function normalizeRemoteSurvey(row){
     return {
       id:row.id,
+      userId:row.user_id || "",
       participant:row.participant_name || "",
       className:row.class_name || "",
       date:row.start_time ? formatDate(new Date(row.start_time)) : "",
@@ -4445,20 +4447,25 @@ svg.leaflet-image-layer.leaflet-interactive path {
     const zone = $("teacherFilterZone").value;
     const status = $("teacherFilterStatus").value;
     const role = $("teacherFilterRole").value;
-    const groupByStudent = new Map(teacherStudents.map(item=>[
-      String(item.name || "").trim(),
-      String(item.group || "").trim()
-    ]));
     return history.map((survey,index)=>({survey,index})).filter(({survey})=>{
       const member = getTeacherMemberInfo(survey);
       const speciesMatch = !species || (survey.observations || []).some(o=>String(o.species || "").trim() === species);
       const statusMatch = !status || (status === "submitted" ? isSubmittedSurvey(survey) : isDraftSurvey(survey));
       return (!student || String(survey.participant || "").trim() === student) &&
-        (!group || groupByStudent.get(String(survey.participant || "").trim()) === group) &&
+        (!group || member.group === group) &&
         speciesMatch &&
         (!zone || String(survey.zone?.name || "").trim() === zone) &&
         statusMatch &&
         (!role || member.role === role);
+    }).map(record=>{
+      if(!species) return record;
+      return {
+        ...record,
+        survey:{
+          ...record.survey,
+          observations:(record.survey.observations || []).filter(o=>String(o.species || "").trim() === species)
+        }
+      };
     });
   }
 
@@ -4648,7 +4655,8 @@ svg.leaflet-image-layer.leaflet-interactive path {
 
   function getTeacherMemberInfo(survey){
     const name = String(survey.participant || "").trim();
-    const member = teacherStudents.find(item=>String(item.name || "").trim() === name);
+    const member = teacherStudents.find(item=>survey.userId && String(item.id || "") === String(survey.userId))
+      || teacherStudents.find(item=>String(item.name || "").trim() === name);
     const role = member?.role || "student";
     return {
       name,
@@ -4756,8 +4764,24 @@ svg.leaflet-image-layer.leaflet-interactive path {
         return "";
       }
     };
+    const observationMapUrlFor = async observation => {
+      if(observation.lat == null || observation.lon == null) return "";
+      try{
+        return await blobToDataUrl(await generateObservationMapSnapshot(
+          observation.lat,
+          observation.lon,
+          observation.accuracy
+        ));
+      }catch(error){
+        console.warn("관찰 위치 지도 생성 실패",error);
+        return "";
+      }
+    };
     const observationHtml = async ({survey,observation})=>{
-      const photoUrl = await photoUrlFor(observation);
+      const [photoUrl,mapUrl] = await Promise.all([
+        photoUrlFor(observation),
+        observationMapUrlFor(observation)
+      ]);
       const position = observation.lat != null && observation.lon != null
         ? `${Number(observation.lat).toFixed(6)}, ${Number(observation.lon).toFixed(6)} · 정확도 ±${Math.round(Number(observation.accuracy || 0))}m`
         : "관찰 위치 정보 없음";
@@ -4769,7 +4793,10 @@ svg.leaflet-image-layer.leaflet-interactive path {
           ${observation.habitat ? `<p><b>출현지역·서식특성</b> ${escapeHtml(observation.habitat)}</p>` : ""}
           ${observation.note ? `<p><b>상세기록</b> ${escapeHtml(observation.note)}</p>` : ""}
         </div>
-        ${photoUrl ? `<img class="structured-photo" src="${photoUrl}" alt="${escapeHtml(observation.species || "관찰 사진")}">` : ""}
+        <div class="structured-media">
+          <div><div class="structured-media-label">학생 촬영 사진</div>${photoUrl ? `<img class="structured-photo" src="${photoUrl}" alt="${escapeHtml(observation.species || "관찰 사진")}">` : `<div class="structured-media-empty">사진 없음</div>`}</div>
+          <div><div class="structured-media-label">관찰 위치 지도</div>${mapUrl ? `<img class="structured-map" src="${mapUrl}" alt="${escapeHtml(observation.species || "관찰 위치")} 지도">` : `<div class="structured-media-empty">지도 없음</div>`}</div>
+        </div>
       </article>`;
     };
 
@@ -4804,7 +4831,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
 
     reportWindow.document.open();
     reportWindow.document.write(`<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>${title}</title><style>
-      @page{size:A4 portrait;margin:14mm}*{box-sizing:border-box}body{width:210mm;max-width:210mm;min-height:297mm;margin:0 auto;padding:14mm;background:#fff;color:#17211c;font-family:Arial,"Malgun Gothic",sans-serif;font-size:10pt;line-height:1.5}@media screen{body{background:#f4f7f5;box-shadow:0 0 12px rgba(23,33,28,.14)}}h1{font-size:22pt;color:#176b4d;margin:0 0 3mm}h2{font-size:14pt;color:#176b4d;margin:8mm 0 3mm}.report-sub{color:#64746b;margin-bottom:7mm}.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:3mm;margin-bottom:7mm}.summary div{padding:4mm;border:1px solid #d7e0da;border-radius:3mm;background:#f4f7f5}.summary strong{display:block;font-size:16pt;color:#0e5139}.summary span{font-size:9pt;color:#64746b}table{width:100%;border-collapse:collapse;margin:2mm 0 7mm}th,td{border:1px solid #d7e0da;padding:2.5mm;text-align:left;vertical-align:top}th{background:#eaf3ed;color:#176b4d}.survey-section,.journal-section{break-inside:avoid;border-top:2px solid #176b4d;padding:4mm 0;margin-top:5mm}.survey-heading{display:flex;justify-content:space-between;gap:5mm;align-items:baseline;border-bottom:1px solid #d7e0da;padding-bottom:2mm}.survey-heading h2,.journal-section h2{margin:0;font-size:13pt;color:#17211c}.muted-line{color:#64746b;font-size:9pt;margin:2mm 0}.structured-route-map-wrap{width:72mm;margin:3mm 0 4mm auto}.structured-route-map-label{font-size:8pt;color:#64746b;margin-bottom:1mm}.structured-route-map{display:block;width:72mm;height:40mm;object-fit:cover;border:1px solid #d7e0da;border-radius:2mm}.observation-table{border:1px solid #cfdcd4;border-radius:2mm;overflow:hidden;margin-top:3mm}.structured-observation{display:grid;grid-template-columns:minmax(0,1fr) 27mm;gap:4mm;align-items:start;border-bottom:1px solid #e1eae4;padding:3mm;background:#fff;break-inside:avoid}.structured-observation:last-child{border-bottom:0}.structured-observation h3{font-size:10.5pt;margin:0 0 1mm;color:#176b4d}.structured-observation p{margin:1mm 0;color:#4f6258;font-size:8.5pt}.structured-photo{width:27mm;height:27mm;object-fit:cover;border-radius:2mm}.reflection{margin-top:4mm;padding:3mm;background:#f4f8f5;border:1px solid #d7e0da;border-radius:2mm}.reflection p{margin:1mm 0}.print-btn{margin:0 0 5mm;padding:2.5mm 5mm;border:0;border-radius:2mm;background:#176b4d;color:#fff;font-weight:bold}@media print{body{width:auto;max-width:none;min-height:0;margin:0;padding:0;box-shadow:none}.print-btn{display:none}}
+      @page{size:A4 portrait;margin:14mm}*{box-sizing:border-box}body{width:210mm;max-width:210mm;min-height:297mm;margin:0 auto;padding:14mm;background:#fff;color:#17211c;font-family:Arial,"Malgun Gothic",sans-serif;font-size:10pt;line-height:1.5}@media screen{body{background:#f4f7f5;box-shadow:0 0 12px rgba(23,33,28,.14)}}h1{font-size:22pt;color:#176b4d;margin:0 0 3mm}h2{font-size:14pt;color:#176b4d;margin:8mm 0 3mm}.report-sub{color:#64746b;margin-bottom:7mm}.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:3mm;margin-bottom:7mm}.summary div{padding:4mm;border:1px solid #d7e0da;border-radius:3mm;background:#f4f7f5}.summary strong{display:block;font-size:16pt;color:#0e5139}.summary span{font-size:9pt;color:#64746b}table{width:100%;border-collapse:collapse;margin:2mm 0 7mm}th,td{border:1px solid #d7e0da;padding:2.5mm;text-align:left;vertical-align:top}th{background:#eaf3ed;color:#176b4d}.survey-section,.journal-section{break-inside:avoid;border-top:2px solid #176b4d;padding:4mm 0;margin-top:5mm}.survey-heading{display:flex;justify-content:space-between;gap:5mm;align-items:baseline;border-bottom:1px solid #d7e0da;padding-bottom:2mm}.survey-heading h2,.journal-section h2{margin:0;font-size:13pt;color:#17211c}.muted-line{color:#64746b;font-size:9pt;margin:2mm 0}.structured-route-map-wrap{width:72mm;margin:3mm 0 4mm auto}.structured-route-map-label{font-size:8pt;color:#64746b;margin-bottom:1mm}.structured-route-map{display:block;width:72mm;height:40mm;object-fit:cover;border:1px solid #d7e0da;border-radius:2mm}.observation-table{border:1px solid #cfdcd4;border-radius:2mm;overflow:hidden;margin-top:3mm}.structured-observation{display:grid;grid-template-columns:1fr;gap:3mm;align-items:start;border-bottom:1px solid #e1eae4;padding:3mm;background:#fff;break-inside:avoid}.structured-observation:last-child{border-bottom:0}.structured-observation h3{font-size:10.5pt;margin:0 0 1mm;color:#176b4d}.structured-observation p{margin:1mm 0;color:#4f6258;font-size:8.5pt}.structured-media{display:grid;grid-template-columns:1fr 1fr;gap:3mm;margin-top:2mm;padding-top:2mm;border-top:1px solid #edf2ee}.structured-media-label{font-size:8pt;color:#64746b;margin-bottom:1mm}.structured-photo,.structured-map{display:block;width:100%;height:32mm;object-fit:cover;border:1px solid #d7e0da;border-radius:2mm}.structured-media-empty{height:32mm;display:flex;align-items:center;justify-content:center;border:1px solid #d7e0da;border-radius:2mm;color:#8a978f;font-size:8pt;background:#f7faf8}.reflection{margin-top:4mm;padding:3mm;background:#f4f8f5;border:1px solid #d7e0da;border-radius:2mm}.reflection p{margin:1mm 0}.print-btn{margin:0 0 5mm;padding:2.5mm 5mm;border:0;border-radius:2mm;background:#176b4d;color:#fff;font-weight:bold}@media print{body{width:auto;max-width:none;min-height:0;margin:0;padding:0;box-shadow:none}.print-btn{display:none}}
     </style></head><body><button class="print-btn" onclick="window.print()">인쇄 또는 PDF로 저장</button><h1>${title}</h1><div class="report-sub">${escapeHtml(filters)} · 생성일 ${new Date().toLocaleString("ko-KR")}</div><div class="summary"><div><strong>${records.length}</strong><span>조사 기록</span></div><div><strong>${stats.length}</strong><span>관찰 종 수</span></div><div><strong>${observations.length}</strong><span>관찰 기록</span></div><div><strong>${totalIndividuals}</strong><span>총 개체 수</span></div></div>${body}</body></html>`);
     reportWindow.document.close();
     reportWindow.focus();
@@ -4878,9 +4905,18 @@ svg.leaflet-image-layer.leaflet-interactive path {
   }
 
   let teacherExportFormat = "pdf";
+  function syncTeacherExportControls(){
+    const reportType = $("teacherExportReportType");
+    const grouping = $("teacherExportGrouping");
+    if(!reportType || !grouping) return;
+    reportType.disabled = teacherExportFormat !== "pdf";
+    grouping.disabled = teacherExportFormat === "pdf" && reportType.value !== "raw";
+  }
+
   function openTeacherExport(format){
     teacherExportFormat = format;
     $("teacherExportTitle").textContent = format === "pdf" ? "PDF 보고서 저장" : "엑셀 데이터 저장";
+    syncTeacherExportControls();
     $("teacherExportModal").classList.remove("hidden");
   }
 
@@ -5827,6 +5863,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
   $("closeTeacherExportModal").addEventListener("click",closeTeacherExport);
   $("cancelTeacherExportBtn").addEventListener("click",closeTeacherExport);
   $("confirmTeacherExportBtn").addEventListener("click",confirmTeacherExport);
+  $("teacherExportReportType").addEventListener("change",syncTeacherExportControls);
   $("addStudentBtn").addEventListener("click",()=>window.__openStudentEditor(""));
   $("closeStudentModal").addEventListener("click",()=>$("studentModal").classList.add("hidden"));
   $("addTeacherBtn").addEventListener("click",()=>window.__openStudentEditor("","collaborating_teacher"));
