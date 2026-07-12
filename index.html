@@ -1849,6 +1849,15 @@ svg.leaflet-image-layer.leaflet-interactive path {
     </div>
     <p class="muted">현재 필터 조건을 기준으로 저장 단위를 선택하세요. 학생별·반별·회원 유형별은 하나의 파일 안에서 구분됩니다.</p>
     <div class="form-group">
+      <label for="teacherExportReportType">보고서 유형</label>
+      <select id="teacherExportReportType">
+        <option value="raw">조사 기록 원자료</option>
+        <option value="result">전체 조사 결과보고서</option>
+        <option value="journal">학생별 관찰일지</option>
+        <option value="class">반별 요약보고서</option>
+      </select>
+    </div>
+    <div class="form-group">
       <label for="teacherExportGrouping">저장 단위</label>
       <select id="teacherExportGrouping">
         <option value="all">전체 기록</option>
@@ -2054,7 +2063,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
     return url;
   }
 
-  async function compressImage(file,maxSide=1600,quality=.8){
+  async function compressImage(file,maxSide=1600,quality=.75){
     if(!file || !file.type.startsWith("image/")){
       throw new Error("이미지 파일을 선택하세요.");
     }
@@ -2113,7 +2122,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
     }
     $("photoStatus").textContent = "사진을 압축하는 중입니다…";
     try{
-      const blob = await compressImage(file,1600,.8);
+      const blob = await compressImage(file,1600,.75);
       clearPendingPhoto();
       pendingPhotoBlob = blob;
       pendingPhotoObjectUrl = URL.createObjectURL(blob);
@@ -4702,7 +4711,110 @@ svg.leaflet-image-layer.leaflet-interactive path {
     downloadExcelWorkbook(`학교숲_조사기록_${suffix}_${new Date().toISOString().slice(0,10)}.xls`,rows);
   }
 
-  async function exportTeacherPdf(grouping="all"){
+  function reportSpeciesStats(records){
+    const stats = new Map();
+    records.forEach(({survey})=>(survey.observations || []).forEach(observation=>{
+      const name = String(observation.species || "미확인 종").trim() || "미확인 종";
+      const item = stats.get(name) || {name,records:0,individuals:0,locations:new Set()};
+      item.records += 1;
+      item.individuals += Number(observation.count || 0);
+      if(observation.habitat) item.locations.add(observation.habitat);
+      stats.set(name,item);
+    }));
+    return Array.from(stats.values()).sort((a,b)=>b.records-a.records || b.individuals-a.individuals);
+  }
+
+  async function exportTeacherStructuredPdf(reportType="result",grouping="all"){
+    const reportWindow = window.open("","_blank");
+    if(!reportWindow){
+      alert("PDF 보고서 창을 열 수 없습니다. 브라우저의 팝업 차단을 해제해 주세요.");
+      return;
+    }
+    reportWindow.document.write("<p style='font-family:sans-serif;padding:24px'>결과보고서를 준비하고 있습니다…</p>");
+    const records = getTeacherExportRecords();
+    const stats = reportSpeciesStats(records);
+    const observations = records.flatMap(({survey})=>(survey.observations || []).map(observation=>({survey,observation})));
+    const totalIndividuals = observations.reduce((sum,{observation})=>sum+Number(observation.count || 0),0);
+    const title = reportType === "journal" ? "학생별 관찰일지" : reportType === "class" ? "반별 요약보고서" : "학교숲 시민과학자 전체 조사 결과보고서";
+    const filters = $("teacherFilterSummary").textContent || "전체 조건";
+    const photoUrlFor = async observation => observation.photoPath
+      ? getSupabasePhotoUrl(observation.photoPath)
+      : observation.photoId ? getPhotoUrl(observation.photoId) : "";
+    const blobToDataUrl = blob => new Promise((resolve,reject)=>{
+      if(!blob) return resolve("");
+      const reader = new FileReader();
+      reader.onload = ()=>resolve(String(reader.result || ""));
+      reader.onerror = ()=>reject(reader.error || new Error("지도 이미지를 읽지 못했습니다."));
+      reader.readAsDataURL(blob);
+    });
+    const routeMapHtmlFor = async survey => {
+      try{
+        const dataUrl = await blobToDataUrl(await generateRouteMapSnapshot(survey));
+        return dataUrl ? `<img class="structured-route-map" src="${dataUrl}" alt="조사 이동 경로 지도">` : "";
+      }catch(error){
+        console.warn("보고서용 지도 생성 실패",error);
+        return "";
+      }
+    };
+    const observationHtml = async ({survey,observation})=>{
+      const photoUrl = await photoUrlFor(observation);
+      const position = observation.lat != null && observation.lon != null
+        ? `${Number(observation.lat).toFixed(6)}, ${Number(observation.lon).toFixed(6)} · 정확도 ±${Math.round(Number(observation.accuracy || 0))}m`
+        : "관찰 위치 정보 없음";
+      return `<article class="structured-observation">
+        <div class="structured-observation-text">
+          <h3>${escapeHtml(observation.species || "미확인 종")}</h3>
+          <p><b>관찰 시간</b> ${escapeHtml(formatTime(observation.time,true))} · <b>개체수</b> ${Number(observation.count || 0)}개체</p>
+          <p><b>관찰 위치</b> ${escapeHtml(position)}</p>
+          ${observation.habitat ? `<p><b>출현지역·서식특성</b> ${escapeHtml(observation.habitat)}</p>` : ""}
+          ${observation.note ? `<p><b>상세기록</b> ${escapeHtml(observation.note)}</p>` : ""}
+        </div>
+        ${photoUrl ? `<img class="structured-photo" src="${photoUrl}" alt="${escapeHtml(observation.species || "관찰 사진")}">` : ""}
+      </article>`;
+    };
+
+    let body = "";
+    if(reportType === "result"){
+      const rows = stats.map(item=>`<tr><td>${escapeHtml(item.name)}</td><td>${item.records}</td><td>${item.individuals}</td><td>${escapeHtml(Array.from(item.locations).join(" · ") || "-" )}</td></tr>`).join("");
+      const surveys = [];
+      for(const record of records){
+        const items = await Promise.all((record.survey.observations || []).map(observation=>observationHtml({survey:record.survey,observation})));
+        const routeMap = await routeMapHtmlFor(record.survey);
+        surveys.push(`<section class="survey-section"><div class="survey-heading"><h2>${escapeHtml(record.survey.participant || "이름 없음")} · ${escapeHtml(record.survey.zone?.name || "조사 구간 없음")}</h2><span>${escapeHtml(record.survey.date || "")}</span></div><p class="muted-line">조사 시간 ${escapeHtml(formatTime(record.survey.startTime,true))} ~ ${escapeHtml(formatTime(record.survey.endTime,true))} · 관찰 ${items.length}건</p>${routeMap}${items.join("")}</section>`);
+      }
+      body = `<h2>종별 관찰 결과</h2><table><thead><tr><th>종명</th><th>관찰 기록</th><th>총 개체수</th><th>주요 출현지역·서식특성</th></tr></thead><tbody>${rows || `<tr><td colspan="4">관찰 기록이 없습니다.</td></tr>`}</tbody></table><h2>조사별 관찰 기록</h2>${surveys.join("") || "<p>조사 기록이 없습니다.</p>"}`;
+    }else if(reportType === "journal"){
+      const journals = [];
+      for(const record of records){
+        const items = await Promise.all((record.survey.observations || []).map(observation=>observationHtml({survey:record.survey,observation})));
+        const routeMap = await routeMapHtmlFor(record.survey);
+        journals.push(`<section class="journal-section"><h2>${escapeHtml(record.survey.participant || "이름 없음")} · ${escapeHtml(record.survey.zone?.name || "조사 구간 없음")}</h2><p class="muted-line">조사일 ${escapeHtml(record.survey.date || "")} · 조사 시간 ${escapeHtml(formatTime(record.survey.startTime,true))} ~ ${escapeHtml(formatTime(record.survey.endTime,true))}</p>${routeMap}${items.join("") || "<p>관찰 기록이 없습니다.</p>"}<div class="reflection"><b>조사 소감 및 특이사항</b><p>${escapeHtml(record.survey.reflection || "기록 없음")}</p></div></section>`);
+      }
+      body = journals.join("") || "<p>학생별 관찰일지를 만들 기록이 없습니다.</p>";
+    }else{
+      const groups = getTeacherExportGroups(records,"group");
+      const groupRows = groups.map(group=>{
+        const groupObservations = group.records.flatMap(({survey})=>survey.observations || []);
+        const species = new Set(groupObservations.map(item=>String(item.species || "").trim()).filter(Boolean)).size;
+        const individuals = groupObservations.reduce((sum,item)=>sum+Number(item.count || 0),0);
+        return `<tr><td>${escapeHtml(group.label)}</td><td>${group.records.length}</td><td>${species}</td><td>${groupObservations.length}</td><td>${individuals}</td></tr>`;
+      }).join("");
+      body = `<h2>반별 조사 요약</h2><table><thead><tr><th>반·소속</th><th>조사 기록</th><th>관찰 종 수</th><th>관찰 기록</th><th>총 개체 수</th></tr></thead><tbody>${groupRows || `<tr><td colspan="5">반별 기록이 없습니다.</td></tr>`}</tbody></table><h2>반별 관찰 자료</h2>${groups.map(group=>`<section class="survey-section"><h2>${escapeHtml(group.label)}</h2><p class="muted-line">조사 ${group.records.length}건 · 관찰 ${group.records.reduce((sum,{survey})=>sum+(survey.observations || []).length,0)}건</p>${group.records.map(({survey})=>`<p>${escapeHtml(survey.participant || "이름 없음")} · ${escapeHtml(survey.zone?.name || "조사 구간 없음")} · ${escapeHtml(survey.date || "")}</p>`).join("")}</section>`).join("")}`;
+    }
+
+    reportWindow.document.open();
+    reportWindow.document.write(`<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>${title}</title><style>
+      @page{size:A4 portrait;margin:14mm}*{box-sizing:border-box}body{margin:0;color:#17211c;font-family:Arial,"Malgun Gothic",sans-serif;font-size:10pt;line-height:1.5}h1{font-size:22pt;color:#176b4d;margin:0 0 3mm}h2{font-size:14pt;color:#176b4d;margin:8mm 0 3mm}.report-sub{color:#64746b;margin-bottom:7mm}.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:3mm;margin-bottom:7mm}.summary div{padding:4mm;border:1px solid #d7e0da;border-radius:3mm;background:#f4f7f5}.summary strong{display:block;font-size:16pt;color:#0e5139}.summary span{font-size:9pt;color:#64746b}table{width:100%;border-collapse:collapse;margin:2mm 0 7mm}th,td{border:1px solid #d7e0da;padding:2.5mm;text-align:left;vertical-align:top}th{background:#eaf3ed;color:#176b4d}.survey-section,.journal-section{break-inside:avoid;border-top:2px solid #176b4d;padding:4mm 0;margin-top:5mm}.survey-heading{display:flex;justify-content:space-between;gap:5mm;align-items:baseline}.survey-heading h2,.journal-section h2{margin:0;font-size:13pt;color:#17211c}.muted-line{color:#64746b;font-size:9pt}.structured-observation{display:grid;grid-template-columns:minmax(0,1fr) 32mm;gap:5mm;align-items:start;border-bottom:1px solid #e7eee9;padding:3mm 0;break-inside:avoid}.structured-observation h3{font-size:11pt;margin:0 0 1mm}.structured-observation p{margin:1mm 0;color:#64746b;font-size:9pt}.structured-photo{width:32mm;height:32mm;object-fit:cover;border-radius:2mm}.structured-route-map{display:block;width:100%;max-width:120mm;height:auto;max-height:58mm;object-fit:cover;border:1px solid #d7e0da;border-radius:2mm;margin:3mm 0 4mm}.reflection{margin-top:4mm;padding:3mm;background:#f4f8f5;border-radius:2mm}.reflection p{margin:1mm 0}.print-btn{margin:0 0 5mm;padding:2.5mm 5mm;border:0;border-radius:2mm;background:#176b4d;color:#fff;font-weight:bold}@media print{.print-btn{display:none}}
+    </style></head><body><button class="print-btn" onclick="window.print()">인쇄 또는 PDF로 저장</button><h1>${title}</h1><div class="report-sub">${escapeHtml(filters)} · 생성일 ${new Date().toLocaleString("ko-KR")}</div><div class="summary"><div><strong>${records.length}</strong><span>조사 기록</span></div><div><strong>${stats.length}</strong><span>관찰 종 수</span></div><div><strong>${observations.length}</strong><span>관찰 기록</span></div><div><strong>${totalIndividuals}</strong><span>총 개체 수</span></div></div>${body}</body></html>`);
+    reportWindow.document.close();
+    reportWindow.focus();
+  }
+
+  async function exportTeacherPdf(grouping="all",reportType="raw"){
+    if(reportType !== "raw"){
+      await exportTeacherStructuredPdf(reportType,grouping);
+      return;
+    }
     const reportWindow = window.open("","_blank");
     if(!reportWindow){
       alert("PDF 보고서 창을 열 수 없습니다. 브라우저의 팝업 차단을 해제해 주세요.");
@@ -4778,8 +4890,9 @@ svg.leaflet-image-layer.leaflet-interactive path {
 
   function confirmTeacherExport(){
     const grouping = $("teacherExportGrouping").value;
+    const reportType = $("teacherExportReportType")?.value || "raw";
     closeTeacherExport();
-    if(teacherExportFormat === "pdf") exportTeacherPdf(grouping);
+    if(teacherExportFormat === "pdf") exportTeacherPdf(grouping,reportType);
     else exportTeacherExcel(grouping);
   }
 
