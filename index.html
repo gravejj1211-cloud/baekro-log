@@ -1034,6 +1034,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
       border-radius:999px;background:#e7f5ec;color:var(--primary-2);
       font-size:11px;font-weight:900;white-space:nowrap
     }
+    .sync-pending-badge{background:#fff4df;color:#8a5b00}
     .reflection-card{border-left:5px solid var(--primary)}
     .submitted-location-card{border-left:5px solid #2474d2}
     .submitted-location-value{
@@ -1913,6 +1914,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
 
     <div class="btn-row" style="margin-top:14px">
       <button class="btn ghost" id="continueSurveyBtn">조사 계속하기</button>
+      <button class="btn secondary" id="savePendingSurveyBtn">임시 저장</button>
       <button class="btn primary" id="confirmFinishBtn">최종 제출</button>
     </div>
   </div>
@@ -3998,6 +4000,77 @@ svg.leaflet-image-layer.leaflet-interactive path {
     }
   }
 
+  function saveSurveyToLocalHistory(survey){
+    const history = loadJson(STORAGE.history,[]);
+    const existingIndex = history.findIndex(item=>item.id===survey.id);
+    if(existingIndex >= 0) history[existingIndex] = survey;
+    else history.unshift(survey);
+    saveJson(STORAGE.history,history);
+  }
+
+  function finishLocalSurveySession(){
+    localStorage.removeItem(STORAGE.draft);
+    stopRouteWatch();
+    stopTimer();
+    $("finishModal").classList.add("hidden");
+    currentSurvey = null;
+    resetMapLayers();
+    renderHistory();
+    showView("history");
+  }
+
+  function saveCurrentSurveyAsPending(){
+    if(!currentSurvey || !isDraftSurvey(currentSurvey)) return;
+    const now = new Date().toISOString();
+    currentSurvey.reflection = $("surveyReflection").value.trim();
+    currentSurvey.endTime = currentSurvey.endTime || now;
+    currentSurvey.endPosition =
+      currentSurvey.endPosition || lastLivePosition || currentSurvey.route[currentSurvey.route.length-1] || null;
+    currentSurvey.submittedAt = null;
+    currentSurvey.submissionStatus = "draft";
+    currentSurvey.status = "draft";
+    currentSurvey.localSyncStatus = "pending";
+    currentSurvey.localSavedAt = now;
+    saveSurveyToLocalHistory(currentSurvey);
+    finishLocalSurveySession();
+    alert("조사 기록을 임시 저장했습니다. 기록 탭에서 인터넷 연결 후 전송할 수 있습니다.");
+  }
+
+  async function sendPendingSurvey(index){
+    const history = loadJson(STORAGE.history,[]);
+    const survey = history[index];
+    if(!survey || survey.localSyncStatus !== "pending") return;
+    if(navigator.onLine === false){
+      alert("인터넷 연결 후 전송할 수 있습니다.");
+      return;
+    }
+
+    survey.localSyncStatus = "syncing";
+    history[index] = survey;
+    saveJson(STORAGE.history,history);
+    renderHistory();
+    try{
+      await syncSurveyToSupabase(survey);
+      survey.localSyncStatus = "synced";
+      survey.status = "submitted";
+      survey.submissionStatus = "submitted";
+      survey.submittedAt = new Date().toISOString();
+      delete survey.localSavedAt;
+      history[index] = survey;
+      saveJson(STORAGE.history,history);
+      renderHistory();
+      alert("조사 기록을 서버에 전송했습니다.");
+    }catch(error){
+      survey.localSyncStatus = "pending";
+      history[index] = survey;
+      saveJson(STORAGE.history,history);
+      renderHistory();
+      alert(`전송하지 못했습니다. 기록은 전송 대기 상태로 남아 있습니다.\n\n${error.message || error}`);
+    }
+  }
+
+  window.__sendPendingSurvey = sendPendingSurvey;
+
   function openFinishModal(){
     if(!currentSurvey || !isDraftSurvey(currentSurvey)) return;
     const totalIndividuals = currentSurvey.observations.reduce((s,o)=>s+Number(o.count||0),0);
@@ -4063,28 +4136,22 @@ svg.leaflet-image-layer.leaflet-interactive path {
     }catch(error){
       currentSurvey.submittedAt = null;
       currentSurvey.submissionStatus = "draft";
-      currentSurvey.status = "진행중";
-      alert(`Supabase 저장에 실패했습니다. 조사 기록은 이 기기에 남아 있습니다.\\n\\n${error.message || error}`);
+      currentSurvey.status = "draft";
+      currentSurvey.localSyncStatus = "pending";
+      currentSurvey.localSavedAt = new Date().toISOString();
+      saveSurveyToLocalHistory(currentSurvey);
+      finishLocalSurveySession();
+      alert("인터넷 연결이 원활하지 않아 조사 기록을 전송 대기 상태로 저장했습니다. 기록 탭에서 다시 전송할 수 있습니다.");
       return;
     }finally{
       confirmBtn.disabled = false;
       confirmBtn.textContent = "최종 제출";
     }
 
-    const history = loadJson(STORAGE.history,[]);
-    const existingIndex = history.findIndex(s=>s.id===currentSurvey.id);
-    if(existingIndex >= 0) history.splice(existingIndex,1);
-    history.unshift(currentSurvey);
-    saveJson(STORAGE.history,history);
+    currentSurvey.localSyncStatus = "synced";
+    saveSurveyToLocalHistory(currentSurvey);
 
-    localStorage.removeItem(STORAGE.draft);
-    stopRouteWatch();
-    stopTimer();
-    $("finishModal").classList.add("hidden");
-    currentSurvey = null;
-    resetMapLayers();
-    renderHistory();
-    showView("history");
+    finishLocalSurveySession();
     alert("조사 기록이 최종 제출되었습니다.");
   }
 
@@ -4098,11 +4165,13 @@ svg.leaflet-image-layer.leaflet-interactive path {
     list.innerHTML = history.map((s,idx)=>{
       const uniqueSpecies = new Set((s.observations||[]).map(o=>o.species.trim().toLowerCase())).size;
       const total = (s.observations||[]).reduce((a,o)=>a+Number(o.count||0),0);
+      const pending = s.localSyncStatus === "pending";
+      const syncing = s.localSyncStatus === "syncing";
       return `
         <div class="history-item">
           <div class="history-title">
             <span>${escapeHtml(s.date)} · ${escapeHtml(s.zone?.name || "미지정")}</span>
-            ${isSubmittedSurvey(s) ? `<span class="submission-badge">최종 제출 완료</span>` : ""}
+            ${isSubmittedSurvey(s) ? `<span class="submission-badge">최종 제출 완료</span>` : pending ? `<span class="submission-badge sync-pending-badge">전송 대기</span>` : syncing ? `<span class="submission-badge sync-pending-badge">전송 중</span>` : ""}
           </div>
           <div class="history-meta">
             ${escapeHtml(s.participant)} · ${formatTime(s.startTime)}~${formatTime(s.endTime)} · ${uniqueSpecies}종 ${total}개체 · ${(s.observations||[]).length}건
@@ -4110,6 +4179,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
             ${s.reflection ? `<br>소감: ${escapeHtml(s.reflection.length > 70 ? s.reflection.slice(0,70)+"…" : s.reflection)}` : ""}
           </div>
           <div class="btn-row" style="margin-top:10px">
+            ${pending ? `<button class="btn primary" onclick="window.__sendPendingSurvey(${idx})">전송</button>` : syncing ? `<button class="btn secondary" disabled>전송 중</button>` : ""}
             <button class="btn ghost" onclick="window.__openHistory(${idx})">제출 내용 보기</button>
           </div>
         </div>
@@ -4183,12 +4253,14 @@ svg.leaflet-image-layer.leaflet-interactive path {
       const uniqueSpecies = new Set((s.observations||[]).map(o=>String(o.species || "").trim().toLowerCase())).size;
       const total = (s.observations||[]).reduce((a,o)=>a+Number(o.count||0),0);
       const deletable = isHistoryDeletable(s);
+      const pending = s.localSyncStatus === "pending";
+      const syncing = s.localSyncStatus === "syncing";
       return `
         <div class="history-item${selectedHistoryIndices.has(idx) ? " selected" : ""}" data-history-index="${idx}" ${deletable ? "data-deletable=\"true\"" : ""}>
           <div class="history-title-row">
             <div class="history-title">
               <span>${escapeHtml(s.date)} · ${escapeHtml(s.zone?.name || "미지정")}</span>
-              ${isSubmittedSurvey(s) ? `<span class="submission-badge">최종 제출 완료</span>` : `<span class="tiny">조사 중</span>`}
+              ${isSubmittedSurvey(s) ? `<span class="submission-badge">최종 제출 완료</span>` : pending ? `<span class="submission-badge sync-pending-badge">전송 대기</span>` : syncing ? `<span class="submission-badge sync-pending-badge">전송 중</span>` : `<span class="tiny">조사 중</span>`}
             </div>
             ${historySelectionMode && deletable ? `<button type="button" class="history-select-box" onclick="window.__toggleHistorySelection(${idx})" aria-label="기록 선택">${selectedHistoryIndices.has(idx) ? "✓" : ""}</button>` : ""}
           </div>
@@ -4198,6 +4270,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
             ${s.reflection ? `<br>소감: ${escapeHtml(s.reflection.length > 70 ? s.reflection.slice(0,70)+"…" : s.reflection)}` : ""}
           </div>
           <div class="btn-row" style="margin-top:10px">
+            ${pending ? `<button class="btn primary" onclick="window.__sendPendingSurvey(${idx})">전송</button>` : syncing ? `<button class="btn secondary" disabled>전송 중</button>` : ""}
             <button class="btn ghost" onclick="window.__openHistory(${idx})">제출 내용 보기</button>
             ${deletable && !historySelectionMode ? `<button class="btn danger" onclick="window.__deleteHistory(${idx})">삭제</button>` : ""}
           </div>
@@ -5907,6 +5980,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
   });
   $("closeFinishModal").addEventListener("click",closeFinishModal);
   $("continueSurveyBtn").addEventListener("click",closeFinishModal);
+  $("savePendingSurveyBtn").addEventListener("click",saveCurrentSurveyAsPending);
   $("surveyReflection").addEventListener("input",saveReflectionDraft);
   $("confirmFinishBtn").addEventListener("click",finishSurvey);
   $("countMinus").addEventListener("click",()=>{
