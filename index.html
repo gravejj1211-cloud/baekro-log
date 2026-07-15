@@ -1044,6 +1044,11 @@ svg.leaflet-image-layer.leaflet-interactive path {
       margin-top:8px;padding:12px;border-radius:12px;background:#f4f8f5;
       color:#263b31;line-height:1.65;white-space:pre-wrap;word-break:break-word
     }
+    .submission-time-list{
+      display:grid;gap:3px;margin-top:10px;text-align:left;
+      color:var(--muted);font-size:12px;line-height:1.45
+    }
+    .submission-time-list strong{color:#263b31;font-weight:800}
     .finish-reflection textarea{min-height:150px;resize:vertical}
     .char-count{text-align:right;margin-top:5px;font-size:12px;color:var(--muted)}
     .submit-warning{
@@ -1416,7 +1421,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
       <div id="submittedReflectionCard" class="card reflection-card hidden">
         <h2>조사 소감 및 특이사항 <span class="submission-badge">최종 제출 완료</span></h2>
         <div id="submittedReflectionText" class="reflection-text"></div>
-        <div id="submittedAtText" class="tiny" style="margin-top:8px"></div>
+        <div id="submittedTimeList" class="submission-time-list"></div>
       </div>
 
       <div id="liveGpsCard" class="card no-print">
@@ -2703,9 +2708,11 @@ svg.leaflet-image-layer.leaflet-interactive path {
     if(isSubmittedSurvey(currentSurvey)){
       $("submittedReflectionText").textContent =
         currentSurvey.reflection?.trim() || "작성된 소감이 없습니다.";
-      $("submittedAtText").textContent = currentSurvey.submittedAt
-        ? `제출 시각 · ${formatTime(currentSurvey.submittedAt,true)}`
-        : "최종 제출 완료";
+      $("submittedTimeList").innerHTML = `
+        <div><strong>조사 시작</strong> · ${escapeHtml(currentSurvey.startTime ? formatTime(currentSurvey.startTime,true) : "-")}</div>
+        <div><strong>조사 종료</strong> · ${escapeHtml(currentSurvey.endTime ? formatTime(currentSurvey.endTime,true) : "-")}</div>
+        <div><strong>제출 시각</strong> · ${escapeHtml(currentSurvey.submittedAt ? formatTime(currentSurvey.submittedAt,true) : "-")}</div>
+      `;
       reflectionCard.classList.remove("hidden");
     }else{
       reflectionCard.classList.add("hidden");
