@@ -805,6 +805,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
     }
     .survey-meta-row{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr) minmax(0,1fr);align-items:center;gap:10px;min-width:0}
     .survey-zone-label{font-size:18px;font-weight:900;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .survey-duration-label{font-size:12px;font-weight:800;color:rgba(255,255,255,.82);text-align:center;white-space:nowrap}
     .survey-weather-label{font-size:12px;font-weight:800;color:#f8df9b;text-align:right;white-space:nowrap;min-width:0}
     .survey-head .sub,.survey-head .muted{color:rgba(255,255,255,.8)}
     .big-number{font-size:28px;font-weight:900}
@@ -1176,7 +1177,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
       .metrics{grid-template-columns:repeat(4,minmax(0,1fr));gap:5px}
       .survey-meta-row{gap:6px}
       .survey-zone-label{font-size:15px}
-      .survey-weather-label{font-size:11px}
+      .survey-duration-label,.survey-weather-label{font-size:11px}
       .metric{padding:8px 3px;border-radius:10px}
       .metric .n{font-size:16px}
       .metric .t{font-size:9px;white-space:nowrap}
@@ -1394,6 +1395,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
       <div class="card survey-head">
         <div class="survey-meta-row">
           <div class="survey-zone-label" id="surveyZoneText">조사 구간 확인 중</div>
+          <div class="survey-duration-label" id="surveyDurationText">소요 시간 · 00:00</div>
           <div class="survey-weather-label" id="surveyWeatherText">날씨 확인 중</div>
         </div>
         <div class="metrics">
@@ -2721,7 +2723,9 @@ svg.leaflet-image-layer.leaflet-interactive path {
   function renderSurveyMetrics(){
     if(!currentSurvey) return;
     const end = currentSurvey.endTime ? new Date(currentSurvey.endTime) : new Date();
-    $("elapsedText").textContent = formatDuration(end - new Date(currentSurvey.startTime));
+    const duration = formatDuration(end - new Date(currentSurvey.startTime));
+    $("elapsedText").textContent = duration;
+    $("surveyDurationText").textContent = `소요 시간 · ${duration}`;
     const uniqueSpecies = new Set(currentSurvey.observations.map(o=>o.species.trim().toLowerCase())).size;
     const totalIndividuals = currentSurvey.observations.reduce((sum,o)=>sum+Number(o.count||0),0);
     $("speciesCountText").textContent = uniqueSpecies;
