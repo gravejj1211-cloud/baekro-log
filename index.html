@@ -805,7 +805,6 @@ svg.leaflet-image-layer.leaflet-interactive path {
     }
     .survey-meta-row{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr) minmax(0,1fr);align-items:center;gap:10px;min-width:0}
     .survey-zone-label{font-size:18px;font-weight:900;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-    .survey-duration-label{font-size:12px;font-weight:800;color:rgba(255,255,255,.82);text-align:center;white-space:nowrap}
     .survey-weather-label{font-size:12px;font-weight:800;color:#f8df9b;text-align:right;white-space:nowrap;min-width:0}
     .survey-head .sub,.survey-head .muted{color:rgba(255,255,255,.8)}
     .big-number{font-size:28px;font-weight:900}
@@ -1185,7 +1184,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
       .metrics{grid-template-columns:repeat(4,minmax(0,1fr));gap:5px}
       .survey-meta-row{gap:6px}
       .survey-zone-label{font-size:15px}
-      .survey-duration-label,.survey-weather-label{font-size:11px}
+      .survey-weather-label{font-size:11px}
       .metric{padding:8px 3px;border-radius:10px}
       .metric .n{font-size:16px}
       .metric .t{font-size:9px;white-space:nowrap}
@@ -1403,7 +1402,6 @@ svg.leaflet-image-layer.leaflet-interactive path {
       <div class="card survey-head">
         <div class="survey-meta-row">
           <div class="survey-zone-label" id="surveyZoneText">조사 구간 확인 중</div>
-          <div class="survey-duration-label" id="surveyDurationText">소요 시간 · 00:00</div>
           <div class="survey-weather-label" id="surveyWeatherText">날씨 확인 중</div>
         </div>
         <div class="metrics">
@@ -1999,6 +1997,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
   let lastLivePosition = null;
   let measuredObservationPosition = null;
   let deviceObservationPosition = null;
+  let observationStartedAt = null;
   let observationLocationMethod = null;
   let observationLocationNote = "";
   let selectingObservationLocation = false;
@@ -2741,7 +2740,6 @@ svg.leaflet-image-layer.leaflet-interactive path {
     const end = currentSurvey.endTime ? new Date(currentSurvey.endTime) : new Date();
     const duration = formatDuration(end - new Date(currentSurvey.startTime));
     $("elapsedText").textContent = duration;
-    $("surveyDurationText").textContent = `소요 시간 · ${duration}`;
     const uniqueSpecies = new Set(currentSurvey.observations.map(o=>o.species.trim().toLowerCase())).size;
     const totalIndividuals = currentSurvey.observations.reduce((sum,o)=>sum+Number(o.count||0),0);
     $("speciesCountText").textContent = uniqueSpecies;
@@ -3080,6 +3078,14 @@ svg.leaflet-image-layer.leaflet-interactive path {
     }
   }
 
+  function formatObservationTimeRange(observation){
+    const start = observation.startTime || observation.time;
+    const end = observation.endTime || observation.time || start;
+    const startText = start ? formatTime(start,true) : "-";
+    const endText = end ? formatTime(end,true) : startText;
+    return `${startText}~${endText}`;
+  }
+
   function renderObservationsLegacy(){
     if(!currentSurvey) return;
     const list = $("obsList");
@@ -3092,7 +3098,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
     list.innerHTML = obs.map((o,idx)=>`
       <article class="obs">
         <div class="obs-card-header">
-          <div class="obs-index">관찰 기록 ${idx + 1} · ${formatTime(o.time,true)} · ${o.count}개체</div>
+          <div class="obs-index">관찰 기록 ${idx + 1} · ${formatObservationTimeRange(o)} · ${o.count}개체</div>
         </div>
         <div class="obs-top">
           <div class="obs-heading">
@@ -3158,7 +3164,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
           <div class="obs-card-header">
             <div class="obs-compact-grid">
               <span class="obs-index">관찰 기록 ${idx + 1}</span>
-              <span class="obs-time">${escapeHtml(formatTime(o.time,true))}</span>
+              <span class="obs-time">${escapeHtml(formatObservationTimeRange(o))}</span>
               <span class="obs-name">${escapeHtml(o.species || "종명 없음")}</span>
               <span class="obs-count">${Number(o.count || 0)}개체</span>
             </div>
@@ -3730,6 +3736,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
       alert("진행 중인 조사가 없습니다.");
       return;
     }
+    observationStartedAt = new Date().toISOString();
     resetObservationLocation();
     renderHabitatChips();
     selectedHabitatTags.clear();
@@ -3896,6 +3903,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
         });
       }
 
+      const observationEndedAt = new Date().toISOString();
       currentSurvey.observations.push({
         id:observationId,
         species,
@@ -3910,12 +3918,15 @@ svg.leaflet-image-layer.leaflet-interactive path {
         deviceAccuracy:deviceObservationPosition?.accuracy ?? measuredObservationPosition.accuracy,
         locationMethod:observationLocationMethod,
         locationNote:observationLocationNote,
-        time:new Date().toISOString(),
+        startTime:observationStartedAt || observationEndedAt,
+        endTime:observationEndedAt,
+        time:observationEndedAt,
         photoId,
         mapSnapshotId
       });
       saveJson(STORAGE.draft,currentSurvey);
       closeObservationModal();
+      observationStartedAt = null;
       showView("survey");
       renderSurvey();
     }catch(e){
