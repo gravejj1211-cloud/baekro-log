@@ -1107,6 +1107,10 @@ svg.leaflet-image-layer.leaflet-interactive path {
     .photo-box{
       border:1px dashed #9db6a7;border-radius:15px;padding:13px;background:#f7fbf8
     }
+    .photo-action{
+      display:inline-flex;align-items:center;justify-content:center;gap:7px;min-width:106px
+    }
+    .photo-action svg{width:20px;height:20px;flex:0 0 auto}
     .photo-input-hidden{
       position:absolute;width:1px;height:1px;opacity:0;pointer-events:none
     }
@@ -1686,9 +1690,15 @@ svg.leaflet-image-layer.leaflet-interactive path {
       <label>사진 추가</label>
       <div class="photo-box">
         <input id="photoInput" class="photo-input-hidden" type="file" accept="image/*" capture="environment" />
-        <label for="photoInput" class="btn secondary">사진 촬영</label>
+        <label for="photoInput" class="btn secondary photo-action" aria-label="촬영">
+          <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h3l1.5-2h7L17 7h3v12H4z"/><circle cx="12" cy="13" r="3.5"/></svg>
+          <span>촬영</span>
+        </label>
         <input id="galleryInput" class="photo-input-hidden" type="file" accept="image/*" />
-        <label for="galleryInput" class="btn secondary">갤러리에서 선택</label>
+        <label for="galleryInput" class="btn secondary photo-action" aria-label="사진첩">
+          <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8" cy="9" r="1.4"/><path d="m4 17 4.5-4.5 3.2 3.2 2.4-2.4L20 18"/></svg>
+          <span>사진첩</span>
+        </label>
         <div id="photoStatus" class="tiny photo-status">촬영된 사진 없음</div>
         <div id="photoPreviewWrap" class="photo-preview-wrap hidden">
           <img id="photoPreview" class="photo-preview" alt="선택한 백로 사진 미리보기" />
