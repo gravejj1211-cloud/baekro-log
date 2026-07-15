@@ -6007,7 +6007,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
   $("mapSelectionCurrentGpsBtn").addEventListener("click",centerPickerOnMeasuredGps);
   $("confirmMapSelectionBtn").addEventListener("click",confirmPickerLocation);
   $("saveObservationBtn").addEventListener("click",saveObservation);
-  $("photoInput").addEventListener("change",handlePhotoSelection);
+  $("photoInput").addEventListener("change",()=>handlePhotoSelection("photoInput"));
   $("galleryInput").addEventListener("change",()=>handlePhotoSelection("galleryInput"));
   $("removePhotoBtn").addEventListener("click",clearPendingPhoto);
   $("centerCurrentBtn").addEventListener("click",centerCurrentLocation);
