@@ -843,6 +843,10 @@ svg.leaflet-image-layer.leaflet-interactive path {
     .teacher-summary-item{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-width:0;text-align:center}
     .teacher-summary-item span{color:var(--muted);font-size:11px;font-weight:800;white-space:nowrap}
     .teacher-summary-item strong{color:var(--primary-2);font-size:17px;font-weight:900;line-height:1.1}
+    .history-status-line{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:12px 0 16px;padding:10px 8px;border:1px solid var(--line);border-radius:14px;background:#f7faf8}
+    .history-status-item{display:flex;flex-direction:column;align-items:center;gap:3px;min-width:0;text-align:center}
+    .history-status-item strong{color:var(--primary-2);font-size:18px;font-weight:900;line-height:1.1}
+    .history-status-item span{color:var(--muted);font-size:11px;font-weight:800;white-space:nowrap}
     .data-usage-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:14px}
     .data-usage-item{padding:12px 8px;border:1px solid var(--line);border-radius:12px;background:#f8fbf9;text-align:center}
     .data-usage-item strong{display:block;color:var(--primary-2);font-size:18px;line-height:1.1}
@@ -1169,6 +1173,9 @@ svg.leaflet-image-layer.leaflet-interactive path {
       .teacher-summary-line{grid-template-columns:repeat(4,minmax(0,1fr));gap:4px}
       .teacher-summary-item span{font-size:9px}
       .teacher-summary-item strong{font-size:15px}
+      .history-status-line{gap:3px;padding:9px 3px}
+      .history-status-item strong{font-size:15px}
+      .history-status-item span{font-size:9px}
       .obs-compact-grid{grid-template-columns:minmax(70px,1.05fr) minmax(63px,.9fr) minmax(0,1.25fr) auto;gap:6px}
       .obs-index,.obs-time{font-size:11px}
       .obs-name{font-size:14px}
@@ -1500,6 +1507,12 @@ svg.leaflet-image-layer.leaflet-interactive path {
     <section id="historyView" class="hidden">
       <div class="card">
         <h2>저장된 조사 기록</h2>
+        <div class="history-status-line" aria-label="조사 기록 전송 현황">
+          <div class="history-status-item"><strong id="historyTotalCountText">0</strong><span>전체 기록</span></div>
+          <div class="history-status-item"><strong id="historyLocalCountText">0</strong><span>로컬 저장</span></div>
+          <div class="history-status-item"><strong id="historyPendingCountText">0</strong><span>전송 대기</span></div>
+          <div class="history-status-item"><strong id="historySyncedCountText">0</strong><span>전송 완료</span></div>
+        </div>
         <div id="historyList"><div class="muted">저장된 기록이 없습니다.</div></div>
       </div>
     </section>
@@ -4157,6 +4170,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
 
   function renderHistory(){
     const history = loadJson(STORAGE.history,[]);
+    renderHistoryStatus(history);
     const list = $("historyList");
     if(!history.length){
       list.innerHTML = `<div class="muted">저장된 기록이 없습니다.</div>`;
@@ -4185,6 +4199,16 @@ svg.leaflet-image-layer.leaflet-interactive path {
         </div>
       `;
     }).join("");
+  }
+
+  function renderHistoryStatus(history=[]){
+    const localCount = history.filter(s=>s.localSyncStatus === "pending" || s.localSyncStatus === "syncing").length;
+    const pendingCount = history.filter(s=>s.localSyncStatus === "pending").length;
+    const syncedCount = history.filter(s=>isSubmittedSurvey(s) || s.localSyncStatus === "synced").length;
+    $("historyTotalCountText").textContent = history.length;
+    $("historyLocalCountText").textContent = localCount;
+    $("historyPendingCountText").textContent = pendingCount;
+    $("historySyncedCountText").textContent = syncedCount;
   }
 
   function isHistoryDeletable(survey){
@@ -4234,6 +4258,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
 
   function renderHistoryStudentSelection(){
     const history = loadJson(STORAGE.history,[]);
+    renderHistoryStatus(history);
     const list = $("historyList");
     if(!history.length){
       historySelectionMode = false;
