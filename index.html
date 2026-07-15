@@ -897,9 +897,9 @@ svg.leaflet-image-layer.leaflet-interactive path {
     }
     .obs{position:relative;isolation:isolate;overflow:hidden}
     .obs-card-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding-bottom:11px;border-bottom:1px solid #e2ebe5}
-    .obs-compact-grid{display:grid;grid-template-columns:max-content max-content minmax(0,1fr) auto;align-items:center;gap:6px;width:100%;min-width:0}
+    .obs-compact-grid{display:grid;grid-template-columns:minmax(76px,1.1fr) minmax(72px,.9fr) minmax(0,1.35fr) auto;align-items:center;gap:10px;width:100%;min-width:0}
     .obs-index{font-size:12px;font-weight:900;color:var(--primary-2);letter-spacing:.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .obs-time{font-size:12px;color:var(--muted);white-space:nowrap;min-width:0;overflow:hidden;text-overflow:ellipsis}
+    .obs-time{font-size:12px;color:var(--muted);white-space:nowrap}
     .obs-top{display:block;min-width:0;padding-top:11px}
     .obs-heading{display:flex;align-items:baseline;gap:9px;min-width:0;flex-wrap:nowrap}
     .obs-name{font-weight:900;font-size:16px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -1175,7 +1175,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
       .history-status-line{gap:3px;padding:9px 3px}
       .history-status-item strong{font-size:15px}
       .history-status-item span{font-size:9px}
-      .obs-compact-grid{grid-template-columns:max-content max-content minmax(0,1fr) auto;gap:3px}
+      .obs-compact-grid{grid-template-columns:minmax(70px,1.05fr) minmax(63px,.9fr) minmax(0,1.25fr) auto;gap:6px}
       .obs-index,.obs-time{font-size:11px}
       .obs-name{font-size:14px}
       .obs-count{font-size:13px}
@@ -1997,7 +1997,6 @@ svg.leaflet-image-layer.leaflet-interactive path {
   let lastLivePosition = null;
   let measuredObservationPosition = null;
   let deviceObservationPosition = null;
-  let observationStartedAt = null;
   let observationLocationMethod = null;
   let observationLocationNote = "";
   let selectingObservationLocation = false;
@@ -3078,14 +3077,6 @@ svg.leaflet-image-layer.leaflet-interactive path {
     }
   }
 
-  function formatObservationTimeRange(observation){
-    const start = observation.startTime || observation.time;
-    const end = observation.endTime || observation.time || start;
-    const startText = start ? formatTime(start,true) : "-";
-    const endText = end ? formatTime(end,true) : startText;
-    return `${startText}~${endText}`;
-  }
-
   function renderObservationsLegacy(){
     if(!currentSurvey) return;
     const list = $("obsList");
@@ -3098,7 +3089,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
     list.innerHTML = obs.map((o,idx)=>`
       <article class="obs">
         <div class="obs-card-header">
-          <div class="obs-index">관찰 기록 ${idx + 1} · ${formatObservationTimeRange(o)} · ${o.count}개체</div>
+          <div class="obs-index">관찰 기록 ${idx + 1} · ${formatTime(o.time,true)} · ${o.count}개체</div>
         </div>
         <div class="obs-top">
           <div class="obs-heading">
@@ -3164,7 +3155,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
           <div class="obs-card-header">
             <div class="obs-compact-grid">
               <span class="obs-index">관찰 기록 ${idx + 1}</span>
-              <span class="obs-time">${escapeHtml(formatObservationTimeRange(o))}</span>
+              <span class="obs-time">${escapeHtml(formatTime(o.time,true))}</span>
               <span class="obs-name">${escapeHtml(o.species || "종명 없음")}</span>
               <span class="obs-count">${Number(o.count || 0)}개체</span>
             </div>
@@ -3736,7 +3727,6 @@ svg.leaflet-image-layer.leaflet-interactive path {
       alert("진행 중인 조사가 없습니다.");
       return;
     }
-    observationStartedAt = new Date().toISOString();
     resetObservationLocation();
     renderHabitatChips();
     selectedHabitatTags.clear();
@@ -3903,7 +3893,6 @@ svg.leaflet-image-layer.leaflet-interactive path {
         });
       }
 
-      const observationEndedAt = new Date().toISOString();
       currentSurvey.observations.push({
         id:observationId,
         species,
@@ -3918,15 +3907,12 @@ svg.leaflet-image-layer.leaflet-interactive path {
         deviceAccuracy:deviceObservationPosition?.accuracy ?? measuredObservationPosition.accuracy,
         locationMethod:observationLocationMethod,
         locationNote:observationLocationNote,
-        startTime:observationStartedAt || observationEndedAt,
-        endTime:observationEndedAt,
-        time:observationEndedAt,
+        time:new Date().toISOString(),
         photoId,
         mapSnapshotId
       });
       saveJson(STORAGE.draft,currentSurvey);
       closeObservationModal();
-      observationStartedAt = null;
       showView("survey");
       renderSurvey();
     }catch(e){
