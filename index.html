@@ -1687,6 +1687,8 @@ svg.leaflet-image-layer.leaflet-interactive path {
       <div class="photo-box">
         <input id="photoInput" class="photo-input-hidden" type="file" accept="image/*" capture="environment" />
         <label for="photoInput" class="btn secondary">사진 촬영</label>
+        <input id="galleryInput" class="photo-input-hidden" type="file" accept="image/*" />
+        <label for="galleryInput" class="btn secondary">갤러리에서 선택</label>
         <div id="photoStatus" class="tiny photo-status">촬영된 사진 없음</div>
         <div id="photoPreviewWrap" class="photo-preview-wrap hidden">
           <img id="photoPreview" class="photo-preview" alt="선택한 백로 사진 미리보기" />
@@ -2105,6 +2107,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
   function clearPendingPhoto(){
     pendingPhotoBlob = null;
     $("photoInput").value = "";
+    $("galleryInput").value = "";
     $("photoPreviewWrap").classList.add("hidden");
     $("photoPreview").removeAttribute("src");
     $("photoStatus").textContent = "촬영된 사진 없음";
@@ -2114,8 +2117,8 @@ svg.leaflet-image-layer.leaflet-interactive path {
     }
   }
 
-  async function handlePhotoSelection(){
-    const file = $("photoInput").files?.[0];
+  async function handlePhotoSelection(inputId="photoInput"){
+    const file = $(inputId).files?.[0];
     if(!file){
       clearPendingPhoto();
       return;
@@ -5837,6 +5840,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
   $("confirmMapSelectionBtn").addEventListener("click",confirmPickerLocation);
   $("saveObservationBtn").addEventListener("click",saveObservation);
   $("photoInput").addEventListener("change",handlePhotoSelection);
+  $("galleryInput").addEventListener("change",()=>handlePhotoSelection("galleryInput"));
   $("removePhotoBtn").addEventListener("click",clearPendingPhoto);
   $("centerCurrentBtn").addEventListener("click",centerCurrentLocation);
   $("fitRouteBtn").addEventListener("click",fitAllRoutePoints);
