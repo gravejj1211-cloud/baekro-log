@@ -1963,7 +1963,8 @@ svg.leaflet-image-layer.leaflet-interactive path {
     applications: "egretSurveyApplications_v1",
     draft: "egretSurveyDraft_v1",
     history: "egretSurveyHistory_v1",
-    participant: "egretSurveyParticipant_v1"
+    participant: "egretSurveyParticipant_v1",
+    offlineSession: "egretSurveyOfflineSession_v1"
   };
 
   const defaultZones = [
@@ -5518,7 +5519,8 @@ svg.leaflet-image-layer.leaflet-interactive path {
         ? `${currentUser.name} · 협력 교사`
         : currentUser?.name || "";
     $("teacher-name").classList.toggle("hidden",!loggedIn);
-    $("userMenuRole").textContent = isOwner ? "주 교사" : isStudent ? "학생" : "협력 교사";
+    const roleLabel = isOwner ? "주 교사" : isStudent ? "학생" : "협력 교사";
+    $("userMenuRole").textContent = currentUser?.offlineMode ? `${roleLabel} · 오프라인` : roleLabel;
     document.querySelector('[data-teacher-tab="students"]')?.classList.toggle("hidden",!isOwner);
     document.querySelector('[data-teacher-tab="data"]')?.classList.toggle("hidden",!isOwner);
     const isCollaboratingTeacher = currentUser?.role === "collaborating_teacher";
@@ -5635,9 +5637,11 @@ svg.leaflet-image-layer.leaflet-interactive path {
       loginId:profile.login_id || "",
       className:profile.class_name || "",
       role:profile.role,
-      loggedInAt:new Date().toISOString()
+      loggedInAt:new Date().toISOString(),
+      offlineMode:false
     };
     saveJson(STORAGE.auth,currentUser);
+    saveOfflineSession(currentUser);
     await loadSharedSettings();
     if(profile.role === "student"){
       $("participant").value = profile.name || profile.login_id || "";
@@ -5647,6 +5651,35 @@ svg.leaflet-image-layer.leaflet-interactive path {
     }else{
       showView("teacher");
     }
+  }
+
+  function saveOfflineSession(user){
+    saveJson(STORAGE.offlineSession,{
+      user:{...user,offlineMode:false},
+      savedAt:new Date().toISOString()
+    });
+  }
+
+  function restoreOfflineSession(){
+    const record = loadJson(STORAGE.offlineSession,null);
+    if(!record?.user || !record.savedAt) return false;
+    const age = Date.now() - new Date(record.savedAt).getTime();
+    const maxAge = 7 * 24 * 60 * 60 * 1000;
+    if(!Number.isFinite(age) || age < 0 || age > maxAge){
+      localStorage.removeItem(STORAGE.offlineSession);
+      return false;
+    }
+    currentUser = {...record.user,offlineMode:true};
+    saveJson(STORAGE.auth,currentUser);
+    if(currentUser.role === "student"){
+      $("participant").value = currentUser.name || currentUser.loginId || "";
+      localStorage.setItem(STORAGE.participant,$("participant").value);
+      renderZoneSettings();
+      showView("home");
+    }else{
+      showView("teacher");
+    }
+    return true;
   }
 
   async function initializeSupabaseAuth(){
@@ -5665,9 +5698,13 @@ svg.leaflet-image-layer.leaflet-interactive path {
     const {data,error} = await supabaseClient.auth.getSession();
     if(error){
       console.error("Supabase 세션 조회 실패",error);
+      if(!navigator.onLine && restoreOfflineSession()) return;
       return;
     }
-    if(!recoveryLink && !recoveryMode) await applySupabaseSession(data.session);
+    if(!recoveryLink && !recoveryMode){
+      if(data.session) await applySupabaseSession(data.session);
+      else if(!navigator.onLine) restoreOfflineSession();
+    }
   }
 
   async function localLogin(){
@@ -5678,6 +5715,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
       return;
     }
     if(!supabaseClient){
+      if(restoreOfflineSession()) return;
       alert("Supabase 연결 설정을 불러오지 못했습니다.");
       return;
     }
@@ -5685,6 +5723,8 @@ svg.leaflet-image-layer.leaflet-interactive path {
       body:{login_id:id,password}
     });
     if(error){
+      const offlineError = !navigator.onLine || /network|fetch|load failed|failed to fetch|networkerror/i.test(String(error.message || ""));
+      if(offlineError && restoreOfflineSession()) return;
       let detail = error.message;
       try{
         const responseBody = await error.context?.json();
@@ -5699,6 +5739,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
     }
     const {error:sessionError} = await supabaseClient.auth.setSession(data.session);
     if(sessionError){
+      if(!navigator.onLine && restoreOfflineSession()) return;
       alert(`로그인 세션을 저장하지 못했습니다. ${sessionError.message}`);
       return;
     }
@@ -5802,6 +5843,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
     if(supabaseClient) await supabaseClient.auth.signOut();
     currentUser = null;
     localStorage.removeItem(STORAGE.auth);
+    localStorage.removeItem(STORAGE.offlineSession);
     showLoginPanel();
     showView("auth");
   }
@@ -6046,6 +6088,11 @@ svg.leaflet-image-layer.leaflet-interactive path {
   });
 
   // 초기화
+  if("serviceWorker" in navigator && window.isSecureContext){
+    navigator.serviceWorker.register("/sw.js").catch(error=>
+      console.warn("오프라인 앱 캐시를 등록하지 못했습니다.",error)
+    );
+  }
   $("participant").value = localStorage.getItem(STORAGE.participant) || "";
   updateSignupFields();
   renderZoneSettings();
