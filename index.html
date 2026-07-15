@@ -805,7 +805,6 @@ svg.leaflet-image-layer.leaflet-interactive path {
     }
     .survey-meta-row{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr) minmax(0,1fr);align-items:center;gap:10px;min-width:0}
     .survey-zone-label{font-size:18px;font-weight:900;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-    .survey-time-label{font-size:12px;color:rgba(255,255,255,.78);white-space:nowrap}
     .survey-weather-label{font-size:12px;font-weight:800;color:#f8df9b;text-align:right;white-space:nowrap;min-width:0}
     .survey-head .sub,.survey-head .muted{color:rgba(255,255,255,.8)}
     .big-number{font-size:28px;font-weight:900}
@@ -1045,8 +1044,8 @@ svg.leaflet-image-layer.leaflet-interactive path {
       color:#263b31;line-height:1.65;white-space:pre-wrap;word-break:break-word
     }
     .submission-time-list{
-      display:grid;gap:3px;margin-top:10px;text-align:left;
-      color:var(--muted);font-size:12px;line-height:1.45
+      display:flex;align-items:center;gap:16px;margin-top:10px;text-align:left;
+      color:var(--muted);font-size:12px;line-height:1.45;flex-wrap:wrap
     }
     .submission-time-list strong{color:#263b31;font-weight:800}
     .finish-reflection textarea{min-height:150px;resize:vertical}
@@ -1177,7 +1176,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
       .metrics{grid-template-columns:repeat(4,minmax(0,1fr));gap:5px}
       .survey-meta-row{gap:6px}
       .survey-zone-label{font-size:15px}
-      .survey-time-label,.survey-weather-label{font-size:11px}
+      .survey-weather-label{font-size:11px}
       .metric{padding:8px 3px;border-radius:10px}
       .metric .n{font-size:16px}
       .metric .t{font-size:9px;white-space:nowrap}
@@ -1395,7 +1394,6 @@ svg.leaflet-image-layer.leaflet-interactive path {
       <div class="card survey-head">
         <div class="survey-meta-row">
           <div class="survey-zone-label" id="surveyZoneText">조사 구간 확인 중</div>
-          <div class="survey-time-label" id="surveyDateText">-</div>
           <div class="survey-weather-label" id="surveyWeatherText">날씨 확인 중</div>
         </div>
         <div class="metrics">
@@ -2693,9 +2691,6 @@ svg.leaflet-image-layer.leaflet-interactive path {
 
   function renderSurvey(){
     if(!currentSurvey) return;
-    $("surveyDateText").textContent = currentSurvey.startTime
-      ? formatTime(currentSurvey.startTime,true)
-      : currentSurvey.date || "-";
     $("surveyZoneText").textContent = currentSurvey.zone?.name || "미지정";
     const weather = currentSurvey.weather || {};
     const weatherSummary = [
@@ -2710,8 +2705,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
         currentSurvey.reflection?.trim() || "작성된 소감이 없습니다.";
       $("submittedTimeList").innerHTML = `
         <div><strong>조사 시작</strong> · ${escapeHtml(currentSurvey.startTime ? formatTime(currentSurvey.startTime,true) : "-")}</div>
-        <div><strong>조사 종료</strong> · ${escapeHtml(currentSurvey.endTime ? formatTime(currentSurvey.endTime,true) : "-")}</div>
-        <div><strong>제출 시각</strong> · ${escapeHtml(currentSurvey.submittedAt ? formatTime(currentSurvey.submittedAt,true) : "-")}</div>
+        <div><strong>조사 종료/제출</strong> · ${escapeHtml(currentSurvey.endTime ? formatTime(currentSurvey.endTime,true) : (currentSurvey.submittedAt ? formatTime(currentSurvey.submittedAt,true) : "-"))}</div>
       `;
       reflectionCard.classList.remove("hidden");
     }else{
